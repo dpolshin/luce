@@ -26,6 +26,10 @@ class Stemmer {
      * Usage: Stemmer file-name file-name ...
      */
     public static void main(String[] args) {
+
+        System.out.println("Working Directory = " +
+              System.getProperty("user.dir"));
+
         char[] w = new char[501];
         Stemmer s = new Stemmer();
         for (String arg : args)

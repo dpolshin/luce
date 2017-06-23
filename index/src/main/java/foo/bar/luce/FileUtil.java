@@ -10,6 +10,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.zip.Adler32;
 import java.util.zip.CheckedInputStream;
+import java.util.zip.Checksum;
 
 /**
  * Utility class for file-related stuff.
@@ -42,6 +43,14 @@ public class FileUtil {
             e.printStackTrace();
         }
         return 0L;
+    }
+
+
+    public static String hash(String string) {
+        byte[] bytes = string.getBytes();
+        Checksum checksum = new Adler32();
+        checksum.update(bytes, 0, bytes.length);
+        return String.valueOf(checksum.getValue());
     }
 
 

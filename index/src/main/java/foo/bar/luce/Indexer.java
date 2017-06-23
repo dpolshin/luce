@@ -1,11 +1,13 @@
 package foo.bar.luce;
 
 import foo.bar.luce.model.FileDescriptor;
-import foo.bar.luce.model.IndexEntry;
+import foo.bar.luce.model.Position;
 import foo.bar.luce.model.Token;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 
@@ -14,17 +16,17 @@ import java.util.Map;
  */
 //todo: address case sensitivity
 public class Indexer {
-    private MemoryIndexRepository indexRepository;
+    private IndexRegistry indexRegistry;
 
-    public Indexer(MemoryIndexRepository indexRepository) {
-        this.indexRepository = indexRepository;
+    public Indexer(IndexRegistry indexRegistry) {
+        this.indexRegistry = indexRegistry;
     }
 
 
     public void index(File file) {
         try {
             WordTokenizer tokenizer = new WordTokenizer(FileUtil.fromFile(file));
-            Map<String, IndexEntry> index = new HashMap<>();
+            Map<String, List<Position>> index = new HashMap<>();
 
             Token t = tokenizer.next();
 
@@ -33,17 +35,20 @@ public class Indexer {
                 String tokenText = t.getToken();
 
                 if (tokenText.length() > 1) {
-                    IndexEntry indexEntry = index.get(tokenText);
+                    List<Position> indexEntry = index.get(tokenText);
                     if (indexEntry != null) {
-                        indexEntry.getTokens().add(t.getPosition());
+                        indexEntry.add(t.getPosition());
                     } else {
-                        index.put(tokenText, new IndexEntry(t));
+                        LinkedList<Position> positions = new LinkedList<>();
+                        positions.add(t.getPosition());
+                        index.put(tokenText, positions);
                     }
                 }
 
                 t = tokenizer.next();
             }
-            indexRepository.addOrUpdate(new FileDescriptor(file), index);
+            FileDescriptor fileDescriptor = new FileDescriptor(file);
+            indexRegistry.addOrUpdate(fileDescriptor, new IndexSegment(fileDescriptor, index));
         } catch (Exception e) {
             e.printStackTrace();
         }

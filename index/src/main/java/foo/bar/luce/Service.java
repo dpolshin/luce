@@ -2,18 +2,20 @@ package foo.bar.luce;
 
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.SearchResultItem;
+import foo.bar.luce.persistence.Persister;
 
 import java.io.File;
 import java.util.Collection;
-import java.util.Set;
+import java.util.List;
 
 public class Service {
 
     private static final Service INSTANCE = new Service();
 
-    private MemoryIndexRepository indexRepository = new MemoryIndexRepository();
-    private FileRegistry fileRegistry = new FileRegistry();
-    private Indexer indexer = new Indexer(indexRepository);
+    private Persister persister;
+    private IndexRegistry indexRepository;
+    private FileRegistry fileRegistry;
+    private Indexer indexer;
 
 
     public static Service getInstance() {
@@ -21,7 +23,16 @@ public class Service {
     }
 
 
-    public Set<SearchResultItem> search(String term) {
+    public Service() throws RuntimeException {
+        persister = new Persister();
+        fileRegistry = new FileRegistry(persister);
+
+        indexRepository = new IndexRegistry(persister, fileRegistry);
+        indexer = new Indexer(indexRepository);
+    }
+
+
+    public List<SearchResultItem> search(String term) {
         return indexRepository.lookup(term);
     }
 
@@ -44,8 +55,9 @@ public class Service {
 
 
     public boolean removeFileFromIndex(FileDescriptor fileDescriptor) {
+        persister.delete(fileDescriptor.getIndexSegmentId());
         return fileRegistry.drop(fileDescriptor) &&
-        indexRepository.drop(fileDescriptor);
+                indexRepository.drop(fileDescriptor);
     }
 
 

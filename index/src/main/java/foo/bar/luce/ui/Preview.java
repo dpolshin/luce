@@ -3,6 +3,8 @@ package foo.bar.luce.ui;
 import foo.bar.luce.FileUtil;
 import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
@@ -17,6 +19,8 @@ import java.io.File;
 import java.io.IOException;
 
 public class Preview extends JDialog {
+    private static final Logger LOG = LoggerFactory.getLogger(Preview.class);
+
     private JPanel contentPane;
     private JButton close;
     private JTextArea textArea;
@@ -56,7 +60,7 @@ public class Preview extends JDialog {
 
         //set position to start
         //or use custom create to avoid textArea content change
-        textArea.setCaretPosition(0);
+        textArea.setCaretPosition(searchResult.getPositions().get(0).getStart());
     }
 
     // Creates highlights around all occurrences of pattern in textComp
@@ -66,9 +70,7 @@ public class Preview extends JDialog {
             highlighter.addHighlight(start, end, highlightPainter);
 
         } catch (BadLocationException e) {
-            System.out.println("highlight position is out of scope");
-            System.out.println(e.getMessage());
-            e.printStackTrace();
+            LOG.error("highlight position is out of scope", e);
         }
     }
 

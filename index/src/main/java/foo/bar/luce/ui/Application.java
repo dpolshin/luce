@@ -4,17 +4,21 @@ import foo.bar.luce.Service;
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.event.KeyEvent;
 import java.io.File;
-import java.util.Set;
+import java.util.List;
 
 /**
  * Application GUI entry point.
  */
 public class Application extends JFrame {
+    private static final Logger LOG = LoggerFactory.getLogger(Application.class);
+
     private JTabbedPane tabs;
     private JTextField searchTerm;
     private JButton searchButton;
@@ -44,6 +48,7 @@ public class Application extends JFrame {
 
     public Application() {
         super("LuceBrother (tm) Simple text indexing and search tool");
+        LOG.debug("start loading application");
 
         service = Service.getInstance();
 
@@ -76,11 +81,12 @@ public class Application extends JFrame {
                     fileListModel.addElement(file.getAbsolutePath());
 
                     status.setText("File " + file.getName() + " added to index");
+                    LOG.info("file {} added to index", file.getAbsolutePath());
 
                     //todo: move button toggle to separate listener;
                     removeButton.setEnabled(true);
                 } else {
-                    System.out.println("already indexed");
+                    LOG.info("file {} already indexed", file.getAbsolutePath());
                 }
             }
         });
@@ -130,15 +136,17 @@ public class Application extends JFrame {
 
     private void search() {
         String term = searchTerm.getText();
+        LOG.info("search for term: {}", term);
 
         if (term.isEmpty() || term.length() == 1) {
+            LOG.debug("too short search term, skipping");
             status.setText("Search term too short");
             return;
         }
 
-        System.out.println("search for term: " + term);
-        Set<SearchResultItem> searchResult = service.search(term);
+        List<SearchResultItem> searchResult = service.search(term);
         status.setText("Found " + searchResult.size() + " files");
+        LOG.info("found {} results for term {}", searchResult.size(), term);
         searchListModel.removeAllElements();
 
         for (SearchResultItem item : searchResult) {
@@ -148,7 +156,7 @@ public class Application extends JFrame {
             for (Position p : item.getPositions()) {
                 b.append(p.getStart()).append("-").append(p.getEnd()).append(",");
             }
-            System.out.println("file: " + item.getFilename() + " idx: " + b.toString());
+            LOG.debug("file: {} match positions: {}", item.getFilename(), b.toString());
         }
     }
 

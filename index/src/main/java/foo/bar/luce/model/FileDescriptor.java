@@ -11,9 +11,9 @@ import java.util.Objects;
  */
 public class FileDescriptor implements Comparable<FileDescriptor>, Serializable {
     private transient File file; //may be null;
-    private long hash; //Adler32 sum;
+    private long hash; //Adler32 file sum;
     private String location; //absolute path;
-    private String indexSegmentId;
+    private String indexSegmentId; //Adler32 absolutePath string sum;
 
 
     public FileDescriptor(String location) {

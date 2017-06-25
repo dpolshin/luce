@@ -5,6 +5,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 
+/**
+ * Service operating with persistent objects stored on the filesystem.
+ */
 public class Persister {
     private static final Logger LOG = LoggerFactory.getLogger(Persister.class);
 
@@ -67,14 +70,15 @@ public class Persister {
         }
     }
 
-    public <T extends Persistable> void delete(String id) throws RuntimeException {
+    public <T extends Persistable> void remove(String id) throws RuntimeException {
         File file = new File(dataDir, id);
         if (!file.exists()) {
             LOG.info("file id: {} transient or already removed", id);
+            return;
         }
 
         if (!file.delete()) {
-            LOG.warn("can't delete file id: {}", id);
+            LOG.warn("can't remove file id: {}", id);
         }
     }
 

@@ -1,8 +1,11 @@
 package foo.bar.luce;
 
 import foo.bar.luce.model.FileDescriptor;
+import foo.bar.luce.model.IndexSegment;
 import foo.bar.luce.model.Position;
 import foo.bar.luce.model.Token;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.HashMap;
@@ -16,15 +19,23 @@ import java.util.Map;
  */
 //todo: address case sensitivity
 public class Indexer {
-    private IndexRegistry indexRegistry;
+    private static final Logger LOG = LoggerFactory.getLogger(Indexer.class);
+    private final Object lock = new Object();
 
-    public Indexer(IndexRegistry indexRegistry) {
+    private IndexRegistry indexRegistry;
+    private FileRegistry fileRegistry;
+
+
+    public Indexer(IndexRegistry indexRegistry, FileRegistry fileRegistry) {
         this.indexRegistry = indexRegistry;
+        this.fileRegistry = fileRegistry;
     }
 
 
-    public void index(File file) {
+    public void index(FileDescriptor fileDescriptor) {
         try {
+            LOG.info("indexing started...");
+            File file = fileDescriptor.getFile();
             WordTokenizer tokenizer = new WordTokenizer(FileUtil.fromFile(file));
             Map<String, List<Position>> index = new HashMap<>();
 
@@ -47,10 +58,15 @@ public class Indexer {
 
                 t = tokenizer.next();
             }
-            FileDescriptor fileDescriptor = new FileDescriptor(file);
-            indexRegistry.addOrUpdate(fileDescriptor, new IndexSegment(fileDescriptor, index));
+            IndexSegment indexSegment = new IndexSegment(fileDescriptor, index);
+
+            synchronized (lock) {
+                indexRegistry.addOrUpdate(fileDescriptor, indexSegment);
+                fileRegistry.update(fileDescriptor);
+            }
+            LOG.info("indexing completed. file: {}, unique tokens: {}", fileDescriptor.getLocation(), indexSegment.getSegment().keySet().size());
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("indexing failed", e);
         }
     }
 }

@@ -48,7 +48,7 @@ public class Application extends JFrame {
 
     public Application() {
         super("LuceBrother (tm) Simple text indexing and search tool");
-        LOG.debug("start loading application");
+        LOG.debug("loading application");
 
         service = Service.getInstance();
 
@@ -92,7 +92,7 @@ public class Application extends JFrame {
         });
 
 
-        //drop files
+        //remove files
         //todo: disable button if list is empty;
         removeButton.addActionListener(e -> {
             int index = fileList.getSelectedIndex();

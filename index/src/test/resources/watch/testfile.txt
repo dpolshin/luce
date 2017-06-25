@@ -1,1 +1,0 @@
-/home/pacman/dev/luce/index/src/test/resources/testfile.txt

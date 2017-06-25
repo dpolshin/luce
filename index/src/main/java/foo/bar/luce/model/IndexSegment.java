@@ -1,12 +1,13 @@
-package foo.bar.luce;
+package foo.bar.luce.model;
 
-import foo.bar.luce.model.FileDescriptor;
-import foo.bar.luce.model.Position;
 import foo.bar.luce.persistence.Persistable;
 
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Class representing part of index (usually from single file), mapped to disk persistent storage.
+ */
 public class IndexSegment implements Persistable {
     private Map<String, List<Position>> segment;
     private String id;

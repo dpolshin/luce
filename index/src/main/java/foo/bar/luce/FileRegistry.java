@@ -1,6 +1,7 @@
 package foo.bar.luce;
 
 import foo.bar.luce.model.FileDescriptor;
+import foo.bar.luce.model.FileSegment;
 import foo.bar.luce.persistence.Persister;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,9 @@ import org.slf4j.LoggerFactory;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Service that manages list of added files.
+ */
 public class FileRegistry {
     private static final Logger LOG = LoggerFactory.getLogger(FileRegistry.class);
 
@@ -31,11 +35,12 @@ public class FileRegistry {
         return add;
     }
 
-    public boolean drop(FileDescriptor fileDescriptor) {
+    public boolean remove(FileDescriptor fileDescriptor) {
         LOG.info("dropping file from index: {}", fileDescriptor.getLocation());
-        boolean drop = fileSegment.getIndexedFiles().remove(fileDescriptor);
+        boolean remove = fileSegment.getIndexedFiles().remove(fileDescriptor);
+        persister.remove(fileDescriptor.getIndexSegmentId());
         persist();
-        return drop;
+        return remove;
     }
 
     public boolean update(FileDescriptor fileDescriptor) {

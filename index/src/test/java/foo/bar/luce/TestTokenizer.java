@@ -60,26 +60,5 @@ public class TestTokenizer {
 
         String result = sb.toString();
         Assert.assertEquals(expected, result);
-
-//        Map<String, IndexEntry> index = new HashMap<>();
-//
-//        for (Token tt : tokens) {
-//            IndexEntry indexEntry = index.get(tt.getToken());
-//            if (indexEntry != null) {
-//                indexEntry.getTokens().add(tt.getPosition());
-//            } else {
-//                index.put(tt.getToken(), new IndexEntry(tt));
-//            }
-//
-//        }
-//
-//        String query = "String";
-//
-//
-//        IndexEntry indexEntry = index.get(query);
-//
-//        System.out.println(indexEntry);
-
-
     }
 }

@@ -60,7 +60,13 @@ public class Preview extends JDialog {
 
         //set position to start
         //or use custom create to avoid textArea content change
-        textArea.setCaretPosition(searchResult.getPositions().get(0).getStart());
+        try {
+            textArea.setCaretPosition(searchResult.getPositions().get(0).getStart());
+        } catch (IllegalArgumentException e) {
+            textArea.setCaretPosition(0);
+            LOG.error("file content for {} changed and position no longer available", filename);
+
+        }
     }
 
     // Creates highlights around all occurrences of pattern in textComp

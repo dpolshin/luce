@@ -20,6 +20,9 @@ import static com.sun.nio.file.SensitivityWatchEventModifier.HIGH;
 import static java.nio.file.StandardWatchEventKinds.*;
 
 
+/**
+ * Notify index when watched file contents changed.
+ */
 public class ChangesMonitor {
     private static final Logger LOG = LoggerFactory.getLogger(ChangesMonitor.class);
     private static final WatchEvent.Kind[] EVENT_KINDS = {ENTRY_DELETE, ENTRY_MODIFY, ENTRY_CREATE, OVERFLOW};

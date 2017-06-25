@@ -1,8 +1,8 @@
 package foo.bar.luce.ui;
 
-import foo.bar.luce.util.FileUtil;
 import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
+import foo.bar.luce.util.FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +18,9 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * Show search result file with text highlights.
+ */
 public class Preview extends JDialog {
     private static final Logger LOG = LoggerFactory.getLogger(Preview.class);
 

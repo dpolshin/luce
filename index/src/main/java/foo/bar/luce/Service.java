@@ -62,8 +62,8 @@ public class Service {
 
     public boolean removeFileFromIndex(FileDescriptor fileDescriptor) {
         //todo: not thread safe
-        return fileRegistry.remove(fileDescriptor) &&
-                indexRegistry.remove(fileDescriptor);
+        return fileRegistry.remove(fileDescriptor)
+                && indexRegistry.remove(fileDescriptor);
     }
 
 }

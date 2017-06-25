@@ -2,7 +2,6 @@ package foo.bar.luce.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -11,6 +10,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Soft reference cache.
+ * When values becomes softly reachable and are garbage-collected, corresponding Entry is evicted from cache.
+ * Class only partially implements Map interface so check methods you want to use.
+ *
+ * @param <K> key
+ * @param <V> value
+ */
 public class CacheMap<K, V> implements Map<K, V> {
     private static final Logger LOG = LoggerFactory.getLogger(CacheMap.class);
 
@@ -53,7 +60,7 @@ public class CacheMap<K, V> implements Map<K, V> {
 
     @Override
     public boolean containsValue(Object value) {
-        throw new NotImplementedException();
+        throw new RuntimeException("Not implemented!");
     }
 
     @Override
@@ -79,7 +86,7 @@ public class CacheMap<K, V> implements Map<K, V> {
 
     @Override
     public void putAll(Map m) {
-        throw new NotImplementedException();
+        throw new RuntimeException("Not implemented!");
 
     }
 
@@ -96,13 +103,12 @@ public class CacheMap<K, V> implements Map<K, V> {
 
     @Override
     public Collection<V> values() {
-        throw new NotImplementedException();
-
+        throw new RuntimeException("Not implemented!");
     }
 
     @Override
     public Set<Entry<K, V>> entrySet() {
-        throw new NotImplementedException();
+        throw new RuntimeException("Not implemented!");
     }
 
 

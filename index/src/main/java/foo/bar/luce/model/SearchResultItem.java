@@ -7,9 +7,9 @@ import java.util.List;
  * Represents a file that matched to search term and positions of a term within file.
  */
 public class SearchResultItem {
-    String filename;
-    String term;
-    List<Position> positions;
+    private String filename;
+    private String term;
+    private List<Position> positions;
 
     public SearchResultItem(String filename, String term, List<Position> positions) {
         this.filename = filename;

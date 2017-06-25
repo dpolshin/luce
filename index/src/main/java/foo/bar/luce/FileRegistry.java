@@ -45,8 +45,8 @@ public class FileRegistry {
 
     public boolean update(FileDescriptor fileDescriptor) {
         LOG.info("updating file from index: {}", fileDescriptor.getLocation());
-        boolean update = fileSegment.getIndexedFiles().remove(fileDescriptor) &&
-                fileSegment.getIndexedFiles().add(fileDescriptor);
+        boolean update = fileSegment.getIndexedFiles().remove(fileDescriptor)
+                && fileSegment.getIndexedFiles().add(fileDescriptor);
         persist();
         return update;
     }

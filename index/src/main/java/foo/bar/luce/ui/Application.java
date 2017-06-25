@@ -144,12 +144,12 @@ public class Application extends JFrame {
             return;
         }
 
-        List<SearchResultItem> searchResult = service.search(term);
-        status.setText("Found " + searchResult.size() + " files");
-        LOG.info("found {} results for term {}", searchResult.size(), term);
+        List<SearchResultItem> searchResults = service.search(term);
+        status.setText("Found " + searchResults.size() + " files");
+        LOG.info("found {} results for term {}", searchResults.size(), term);
         searchListModel.removeAllElements();
 
-        for (SearchResultItem item : searchResult) {
+        for (SearchResultItem item : searchResults) {
             searchListModel.addElement(item);
 
             StringBuilder b = new StringBuilder();

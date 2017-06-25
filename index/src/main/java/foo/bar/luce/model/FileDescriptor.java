@@ -53,8 +53,12 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         FileDescriptor that = (FileDescriptor) o;
         return Objects.equals(location, that.location);
     }

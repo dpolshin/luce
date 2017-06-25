@@ -1,6 +1,6 @@
 package foo.bar.luce.ui;
 
-import foo.bar.luce.FileUtil;
+import foo.bar.luce.util.FileUtil;
 import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
 import org.slf4j.Logger;

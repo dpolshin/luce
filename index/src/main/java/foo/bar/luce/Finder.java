@@ -27,9 +27,11 @@ public class Finder {
     public List<SearchResultItem> find(String term) {
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
-        List<SearchResultItem> searchResult = indexCache.entrySet().parallelStream()
-                .filter(entry -> entry.getValue().getSegment().containsKey(term))
-                .map(entry -> new SearchResultItem(entry.getKey().getLocation(), term, entry.getValue().getSegment().get(term)))
+        Set<FileDescriptor> keySet = indexCache.keySet();
+
+        List<SearchResultItem> searchResult = keySet.parallelStream()
+                .filter(key -> indexCache.get(key).getSegment().containsKey(term))
+                .map(key -> new SearchResultItem(key.getLocation(), term, indexCache.get(key).getSegment().get(term)))
                 .sequential().collect(Collectors.toList());
 
 
@@ -42,7 +44,7 @@ public class Finder {
             LOG.info("no file in cache, loading index segment for {}", file.getLocation());
             IndexSegment indexSegment = indexRegistry.getIndexSegment(file);
             if (indexSegment != null) {
-                indexCache.put(file, indexSegment);
+                indexRegistry.cacheSegment(file, indexSegment);
             } else {
                 LOG.info("index segment file not found for {}", file.getLocation());
                 continue;

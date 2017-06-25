@@ -1,4 +1,4 @@
-package foo.bar.luce;
+package foo.bar.luce.util;
 
 import foo.bar.luce.model.FileDescriptor;
 

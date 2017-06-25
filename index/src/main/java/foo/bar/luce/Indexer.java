@@ -4,6 +4,7 @@ import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.IndexSegment;
 import foo.bar.luce.model.Position;
 import foo.bar.luce.model.Token;
+import foo.bar.luce.util.FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

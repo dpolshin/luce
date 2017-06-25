@@ -1,6 +1,6 @@
 package foo.bar.luce.model;
 
-import foo.bar.luce.FileUtil;
+import foo.bar.luce.util.FileUtil;
 
 import java.io.File;
 import java.io.Serializable;

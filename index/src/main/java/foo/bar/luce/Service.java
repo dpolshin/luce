@@ -53,6 +53,7 @@ public class Service {
 
 
     public boolean addFileToIndex(FileDescriptor fileDescriptor) {
+        //todo: not thread safe
         indexer.index(fileDescriptor);
         changesMonitor.register(fileDescriptor.getFile().toPath());
         return fileRegistry.add(fileDescriptor);
@@ -60,6 +61,7 @@ public class Service {
 
 
     public boolean removeFileFromIndex(FileDescriptor fileDescriptor) {
+        //todo: not thread safe
         return fileRegistry.remove(fileDescriptor) &&
                 indexRegistry.remove(fileDescriptor);
     }

@@ -1,5 +1,7 @@
 package foo.bar.luce;
 
+import foo.bar.luce.index.Analyzer;
+import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.IndexSegment;
 import foo.bar.luce.model.Position;
@@ -13,12 +15,12 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 
 /**
  * Service responsible of maintaining a registry of known files and indexing new files and file updates.
  */
-//todo: address case sensitivity
 public class Indexer {
     private static final Logger LOG = LoggerFactory.getLogger(Indexer.class);
     private final Object lock = new Object();
@@ -37,28 +39,17 @@ public class Indexer {
         try {
             LOG.info("indexing started...");
             File file = fileDescriptor.getFile();
+
+            //todo: research way to lazily create source from file, without reading whole into memory.
             WordTokenizer tokenizer = new WordTokenizer(FileUtil.fromFile(file));
+            Stream<Token> rawTokenString = tokenizer.stream();
+            Analyzer analyzer = new Analyzer(rawTokenString);
+            Stream<Token> tokenStream = analyzer.analyze();
+
             Map<String, List<Position>> index = new HashMap<>();
 
-            Token t = tokenizer.next();
+            tokenStream.forEach(t -> saveToIndex(t, index));
 
-            while (t != null) {
-
-                String tokenText = t.getToken();
-
-                if (tokenText.length() > 1) {
-                    List<Position> indexEntry = index.get(tokenText);
-                    if (indexEntry != null) {
-                        indexEntry.add(t.getPosition());
-                    } else {
-                        LinkedList<Position> positions = new LinkedList<>();
-                        positions.add(t.getPosition());
-                        index.put(tokenText, positions);
-                    }
-                }
-
-                t = tokenizer.next();
-            }
             IndexSegment indexSegment = new IndexSegment(fileDescriptor, index);
 
             synchronized (lock) {
@@ -68,6 +59,19 @@ public class Indexer {
             LOG.info("indexing completed. file: {}, unique tokens: {}", fileDescriptor.getLocation(), indexSegment.getSegment().keySet().size());
         } catch (Exception e) {
             LOG.error("indexing failed", e);
+        }
+    }
+
+    private void saveToIndex(Token token, Map<String, List<Position>> index) {
+        String tokenText = token.getToken();
+
+        List<Position> indexEntry = index.get(tokenText);
+        if (indexEntry != null) {
+            indexEntry.add(token.getPosition());
+        } else {
+            LinkedList<Position> positions = new LinkedList<>();
+            positions.add(token.getPosition());
+            index.put(tokenText, positions);
         }
     }
 }

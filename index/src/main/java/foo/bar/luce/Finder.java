@@ -1,15 +1,20 @@
 package foo.bar.luce;
 
+import foo.bar.luce.index.Analyzer;
+import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.IndexSegment;
 import foo.bar.luce.model.SearchResultItem;
+import foo.bar.luce.model.Token;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Finder {
     private static final Logger LOG = LoggerFactory.getLogger(Finder.class);
@@ -24,7 +29,27 @@ public class Finder {
     }
 
 
-    public List<SearchResultItem> find(String term) {
+    public List<SearchResultItem> find(String query) {
+        WordTokenizer tokenizer = new WordTokenizer(query);
+        Stream<Token> rawTokenString = tokenizer.stream();
+        Analyzer analyzer = new Analyzer(rawTokenString);
+        Stream<Token> tokenStream = analyzer.analyze();
+
+        LOG.info("search terms: ");
+        List<Token> queryTerms = tokenStream
+                .peek(t -> LOG.info(t.toString()))
+                .collect(Collectors.toList());
+
+        if (queryTerms.size() != 0) {
+            String term = queryTerms.get(0).getToken();
+            return singleTermSearch(term);
+        }
+
+        return Collections.emptyList();
+    }
+
+
+    private List<SearchResultItem> singleTermSearch(String term) {
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
         Set<FileDescriptor> keySet = indexCache.keySet();

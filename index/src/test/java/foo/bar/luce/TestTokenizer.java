@@ -1,5 +1,6 @@
 package foo.bar.luce;
 
+import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.Token;
 import org.junit.Assert;
 import org.junit.Test;
@@ -51,12 +52,8 @@ public class TestTokenizer {
         WordTokenizer tokenizer = new WordTokenizer(TEXT);
 
         StringBuilder sb = new StringBuilder();
+        tokenizer.stream().forEach(t->sb.append(t.toString()).append("\n"));
 
-        Token t = tokenizer.next();
-        while (t != null) {
-            sb.append(t.toString()).append("\n");
-            t = tokenizer.next();
-        }
 
         String result = sb.toString();
         Assert.assertEquals(EXPECTED, result);

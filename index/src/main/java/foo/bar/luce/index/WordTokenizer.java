@@ -1,9 +1,12 @@
-package foo.bar.luce;
+package foo.bar.luce.index;
 
 import foo.bar.luce.model.Token;
 
+import java.util.Spliterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Simple tokenizer.
@@ -11,20 +14,18 @@ import java.util.regex.Pattern;
  *
  * @see Character#isLetter(char)
  */
-public class WordTokenizer {
+public class WordTokenizer implements Tokenizer {
     private static final String PATTERN = "\\p{L}+"; //unicode 'word' pattern
-    private final Matcher matcher;
+    Spliterator<Token> spliterator;
 
     public WordTokenizer(CharSequence input) {
         Pattern pattern = Pattern.compile(PATTERN);
-        matcher = pattern.matcher(input);
+        Matcher matcher = pattern.matcher(input);
+        spliterator = new MatchSpliterator(matcher);
     }
 
-    public Token next() {
-        if (matcher.find()) {
-            return new Token(matcher.group(), matcher.start(), matcher.end());
-        } else {
-            return null;
-        }
+    @Override
+    public Stream<Token> stream() {
+        return StreamSupport.stream(spliterator, false);
     }
 }

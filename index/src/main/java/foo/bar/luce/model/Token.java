@@ -2,7 +2,7 @@ package foo.bar.luce.model;
 
 /**
  * Class representing single token emitted by text tokenizer.
- * A word and position of a word within a file.
+ * A word and position of a word within input.
  */
 public class Token {
     private String token;
@@ -15,6 +15,10 @@ public class Token {
 
     public String getToken() {
         return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public int getStartOffset() {

@@ -1,5 +1,6 @@
-package foo.bar.luce;
+package foo.bar.luce.index;
 
+import foo.bar.luce.Ranker;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;

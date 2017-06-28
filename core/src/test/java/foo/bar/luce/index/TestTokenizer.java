@@ -1,4 +1,4 @@
-package foo.bar.luce;
+package foo.bar.luce.index;
 
 import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.Token;

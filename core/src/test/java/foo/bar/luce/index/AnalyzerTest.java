@@ -2,6 +2,7 @@ package foo.bar.luce.index;
 
 import foo.bar.luce.model.Token;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -19,6 +20,8 @@ public class AnalyzerTest {
     }
 
     @Test
+    @Ignore
+    //length filter was asked to ignore
     public void testLengthFiltering() throws Exception {
         List<Token> filteredToken = getFilteredToken("ca");
         Assert.assertEquals(0, filteredToken.size());

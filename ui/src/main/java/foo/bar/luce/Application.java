@@ -3,8 +3,6 @@ package foo.bar.luce;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
-import foo.bar.luce.Finder;
-import foo.bar.luce.Service;
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
@@ -16,6 +14,13 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 
 /**
@@ -79,22 +84,15 @@ public class Application extends JFrame {
 
             FileNameExtensionFilter filter = new FileNameExtensionFilter("Text files", "txt");
             chooser.setFileFilter(filter);
+            chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
             int returnVal = chooser.showOpenDialog(root);
 
             if (returnVal == JFileChooser.APPROVE_OPTION) {
                 File file = chooser.getSelectedFile();
 
-                if (service.addFileToIndex(new FileDescriptor(file))) {
-                    fileListModel.addElement(file.getAbsolutePath());
 
-                    status.setText("File " + file.getName() + " added to index");
-                    LOG.info("file {} added to index", file.getAbsolutePath());
+                addFile(file);
 
-                    //todo: move button toggle to separate listener;
-                    removeButton.setEnabled(true);
-                } else {
-                    LOG.info("file {} already indexed", file.getAbsolutePath());
-                }
             }
         });
 
@@ -141,15 +139,46 @@ public class Application extends JFrame {
         });
     }
 
+    private void addFile(File file) {
+        if (!file.isDirectory()) {
+            addSingleFile(file);
+        } else {
+            try {
+                Files.walkFileTree(file.toPath(), new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+
+                        FileFilter txtExtensionFilter = file1 -> file1.getAbsolutePath().toLowerCase().endsWith(".txt");
+
+                        if (txtExtensionFilter.accept(file.toFile())) {
+                            addSingleFile(file.toFile());
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            } catch (IOException e) {
+                LOG.error("Adding file to index failed", e);
+            }
+        }
+    }
+
+    private void addSingleFile(File file) {
+        if (service.addFileToIndex(new FileDescriptor(file))) {
+            fileListModel.addElement(file.getAbsolutePath());
+
+            status.setText("File " + file.getName() + " added to index");
+            LOG.info("file {} added to index", file.getAbsolutePath());
+
+            //todo: move button toggle to separate listener;
+            removeButton.setEnabled(true);
+        } else {
+            LOG.info("file {} already indexed", file.getAbsolutePath());
+        }
+    }
+
     private void search() {
         String term = searchTerm.getText();
         LOG.info("search for term: {}", term);
-
-        if (term.isEmpty() || term.length() < 3) {
-            LOG.debug("too short search term, skipping");
-            status.setText("Search term too short");
-            return;
-        }
 
         List<SearchResultItem> searchResults = service.search(term, selectedMode());
         status.setText("Found " + searchResults.size() + " files");

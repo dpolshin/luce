@@ -19,9 +19,7 @@ public class Analyzer {
 
     public Analyzer(Stream<Token> tokenStream) {
         this.tokenStream = tokenStream;
-        this.filterChain = new LengthFilter()
-                .then(new ToLowerCaseFilter())
-                .then(new StopWordsFilter());
+        this.filterChain = new ToLowerCaseFilter().then(new StopWordsFilter());
     }
 
     public Stream<Token> analyze() {

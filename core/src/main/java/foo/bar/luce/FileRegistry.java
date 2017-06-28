@@ -20,6 +20,8 @@ public class FileRegistry {
 
     public FileRegistry(Persister persister) {
         this.persister = persister;
+
+        //FileRegistry id for persister is always it's classname
         FileSegment segment = persister.load(FileSegment.class.getSimpleName());
         if (segment != null) {
             fileSegment = segment;

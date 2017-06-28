@@ -97,7 +97,7 @@ public class Ranker {
 
         for (j = 1; j <= lenR; j++) {
             upL = p[0];
-            rightJ = right.charAt(j - 1);   //todo: deal with surrogate
+            rightJ = right.charAt(j - 1);   //todo: distance will be off for 1 by each surrogate key
             p[0] = j;
 
             for (i = 1; i <= lenL; i++) {

@@ -124,7 +124,7 @@ public class Finder {
     }
 
 
-    //todo: use for exact mode of search
+    //used for exact mode of search
     private List<MultiSearchResultItem> multipleTermSearch(String rawTerm, List<Token> terms) {
 
         //fast cache search

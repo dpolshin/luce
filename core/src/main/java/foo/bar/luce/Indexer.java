@@ -52,10 +52,8 @@ public class Indexer {
 
             IndexSegment indexSegment = new IndexSegment(fileDescriptor, index);
 
-            synchronized (lock) {
-                indexRegistry.addOrUpdate(fileDescriptor, indexSegment);
-                fileRegistry.update(fileDescriptor);
-            }
+            indexRegistry.addOrUpdate(fileDescriptor, indexSegment);
+            fileRegistry.update(fileDescriptor);
             LOG.info("indexing completed. file: {}, unique tokens: {}", fileDescriptor.getLocation(), indexSegment.getSegment().keySet().size());
         } catch (Exception e) {
             LOG.error("indexing failed", e);

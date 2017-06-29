@@ -185,7 +185,7 @@ public class Application extends JFrame {
             searchListModel.addElement(item);
 
             StringBuilder b = new StringBuilder();
-            for (Position p : item.getPositions()) {
+            for (Position p : item.getPositions().subList(0, Math.min(item.getPositions().size(), 100))) {
                 b.append(p.getStart()).append("-").append(p.getEnd()).append(",");
             }
             LOG.debug("file: {} match positions: {}", item.getFilename(), b.toString());

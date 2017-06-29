@@ -65,7 +65,7 @@ public class Ranker {
             int positionDistance = Math.abs(frameEnd - frameStart - queryLength);
 
             int levenshteinDistance = distance(query.toLowerCase(), String.join(" ", frame));
-            LOG.debug("probing string: {}, lev distance: {}, index distance: {}", frame, levenshteinDistance, positionDistance);
+            LOG.trace("probing string: {}, lev distance: {}, index distance: {}", frame, levenshteinDistance, positionDistance);
 
             if (levenshteinDistance < maxDistance && positionDistance < maxDistance) {
                 positions.add(new Position(frameStart, frameEnd));

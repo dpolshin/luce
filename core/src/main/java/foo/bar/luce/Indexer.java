@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -35,8 +36,8 @@ public class Indexer {
     }
 
 
-    public void index(FileDescriptor fileDescriptor) {
-        try {
+    public void index(FileDescriptor fileDescriptor) throws IOException {
+
             LOG.info("indexing started...");
             File file = fileDescriptor.getFile();
 
@@ -55,9 +56,7 @@ public class Indexer {
             indexRegistry.addOrUpdate(fileDescriptor, indexSegment);
             fileRegistry.update(fileDescriptor);
             LOG.info("indexing completed. file: {}, unique tokens: {}", fileDescriptor.getLocation(), indexSegment.getSegment().keySet().size());
-        } catch (Exception e) {
-            LOG.error("indexing failed", e);
-        }
+
     }
 
     private void saveToIndex(Token token, Map<String, List<Position>> index) {

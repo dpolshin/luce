@@ -10,12 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
+import java.nio.charset.MalformedInputException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -73,26 +72,19 @@ public class Application extends JFrame {
 
         //search
         searchTerm.registerKeyboardAction(e -> search(), KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        searchButton.addActionListener(e -> {
-            search();
-        });
+        searchButton.addActionListener(e -> search());
 
 
         //add files
         addButton.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
 
-            FileNameExtensionFilter filter = new FileNameExtensionFilter("Text files", "txt");
-            chooser.setFileFilter(filter);
             chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
             int returnVal = chooser.showOpenDialog(root);
 
             if (returnVal == JFileChooser.APPROVE_OPTION) {
                 File file = chooser.getSelectedFile();
-
-
                 addFile(file);
-
             }
         });
 
@@ -147,12 +139,7 @@ public class Application extends JFrame {
                 Files.walkFileTree(file.toPath(), new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-
-                        FileFilter txtExtensionFilter = file1 -> file1.getAbsolutePath().toLowerCase().endsWith(".txt");
-
-                        if (txtExtensionFilter.accept(file.toFile())) {
-                            addSingleFile(file.toFile());
-                        }
+                        addSingleFile(file.toFile());
                         return FileVisitResult.CONTINUE;
                     }
                 });
@@ -163,16 +150,25 @@ public class Application extends JFrame {
     }
 
     private void addSingleFile(File file) {
-        if (service.addFileToIndex(new FileDescriptor(file))) {
-            fileListModel.addElement(file.getAbsolutePath());
+        try {
+            if (service.addFileToIndex(new FileDescriptor(file))) {
+                fileListModel.addElement(file.getAbsolutePath());
 
-            status.setText("File " + file.getName() + " added to index");
-            LOG.info("file {} added to index", file.getAbsolutePath());
+                status.setText("File " + file.getName() + " added to index");
+                LOG.info("file {} added to index", file.getAbsolutePath());
 
-            //todo: move button toggle to separate listener;
-            removeButton.setEnabled(true);
-        } else {
-            LOG.info("file {} already indexed", file.getAbsolutePath());
+                //todo: move button toggle to separate listener;
+                removeButton.setEnabled(true);
+            } else {
+                LOG.info("file {} already indexed", file.getAbsolutePath());
+            }
+
+        } catch (MalformedInputException e) {
+            LOG.error("Exception occurred while adding file", e);
+            status.setText("Adding file " + file.getName() + " failed. Corrupted file or unsupported encoding");
+        } catch (IOException e) {
+            LOG.error("Exception occurred while adding file", e);
+            status.setText("Adding file " + file.getName() + " failed: " + e.getMessage());
         }
     }
 

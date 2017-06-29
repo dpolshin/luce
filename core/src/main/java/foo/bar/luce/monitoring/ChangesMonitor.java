@@ -98,7 +98,11 @@ public class ChangesMonitor {
                         Long oldHash = oldFileDescriptors.get(0).getHash();
                         if (!oldHash.equals(newFileDescriptor.getHash())) {
                             LOG.info("found changes in file: " + newFileDescriptor.getLocation());
-                            indexer.index(newFileDescriptor);
+                            try {
+                                indexer.index(newFileDescriptor);
+                            } catch (IOException e) {
+                                LOG.error("re-indexing file failed ", e);
+                            }
                         }
                     }
                 });

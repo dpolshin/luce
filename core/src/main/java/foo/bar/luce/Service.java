@@ -5,6 +5,7 @@ import foo.bar.luce.model.SearchResultItem;
 import foo.bar.luce.monitoring.ChangesMonitor;
 import foo.bar.luce.persistence.Persister;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
@@ -52,7 +53,7 @@ public class Service {
     }
 
 
-    public boolean addFileToIndex(FileDescriptor fileDescriptor) {
+    public boolean addFileToIndex(FileDescriptor fileDescriptor) throws IOException {
         indexer.index(fileDescriptor);
         changesMonitor.register(fileDescriptor.getFile().toPath());
         return fileRegistry.add(fileDescriptor);

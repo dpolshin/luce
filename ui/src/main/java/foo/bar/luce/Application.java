@@ -4,7 +4,6 @@ import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
 import foo.bar.luce.model.FileDescriptor;
-import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,12 +85,17 @@ public class Application extends JFrame {
                 File file = chooser.getSelectedFile();
                 addFile(file);
             }
+            removeButton.setEnabled(true);
         });
 
 
         //remove files
-        //todo: disable button if list is empty;
         removeButton.addActionListener(e -> {
+            if (fileListModel.getSize() == 0) {
+                removeButton.setEnabled(false);
+                return;
+            }
+
             int index = fileList.getSelectedIndex();
 
             String filename = fileListModel.get(index);
@@ -132,45 +136,52 @@ public class Application extends JFrame {
     }
 
     private void addFile(File file) {
-        if (!file.isDirectory()) {
-            addSingleFile(file);
-        } else {
-            try {
-                Files.walkFileTree(file.toPath(), new SimpleFileVisitor<Path>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                        addSingleFile(file.toFile());
-                        return FileVisitResult.CONTINUE;
+        new SwingWorker<String, String>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                if (!file.isDirectory()) {
+                    addSingleFile(file);
+                } else {
+                    try {
+                        Files.walkFileTree(file.toPath(), new SimpleFileVisitor<Path>() {
+                            @Override
+                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                                addSingleFile(file.toFile());
+                                return FileVisitResult.CONTINUE;
+                            }
+                        });
+                    } catch (IOException e) {
+                        LOG.error("Adding file to index failed", e);
                     }
-                });
-            } catch (IOException e) {
-                LOG.error("Adding file to index failed", e);
-            }
-        }
-    }
-
-    private void addSingleFile(File file) {
-        try {
-            if (service.addFileToIndex(new FileDescriptor(file))) {
-                fileListModel.addElement(file.getAbsolutePath());
-
-                status.setText("File " + file.getName() + " added to index");
-                LOG.info("file {} added to index", file.getAbsolutePath());
-
-                //todo: move button toggle to separate listener;
-                removeButton.setEnabled(true);
-            } else {
-                LOG.info("file {} already indexed", file.getAbsolutePath());
+                }
+                return null;
             }
 
-        } catch (MalformedInputException e) {
-            LOG.error("Exception occurred while adding file", e);
-            status.setText("Adding file " + file.getName() + " failed. Corrupted file or unsupported encoding");
-        } catch (IOException e) {
-            LOG.error("Exception occurred while adding file", e);
-            status.setText("Adding file " + file.getName() + " failed: " + e.getMessage());
-        }
+            @Override
+            protected void process(List<String> chunks) {
+                for (String location : chunks) {
+                    fileListModel.addElement(location);
+                }
+                status.setText("File " + chunks.get(chunks.size() - 1) + " added to index");
+            }
+
+            private void addSingleFile(File file) {
+                try {
+                    if (service.addFileToIndex(new FileDescriptor(file))) {
+                        publish(file.getAbsolutePath());
+                    } else {
+                        LOG.info("file {} already indexed", file.getAbsolutePath());
+                    }
+                } catch (MalformedInputException e) {
+                    status.setText(file.getName() + " Corrupt file or unsupported encoding");
+                    LOG.info("Adding file " + file.getName() + " failed. Corrupt file or unsupported encoding");
+                } catch (IOException e) {
+                     LOG.error("Adding file " + file.getName(), e);
+                }
+            }
+        }.execute();
     }
+
 
     private void search() {
         String term = searchTerm.getText();
@@ -183,12 +194,7 @@ public class Application extends JFrame {
 
         for (SearchResultItem item : searchResults) {
             searchListModel.addElement(item);
-
-            StringBuilder b = new StringBuilder();
-            for (Position p : item.getPositions().subList(0, Math.min(item.getPositions().size(), 100))) {
-                b.append(p.getStart()).append("-").append(p.getEnd()).append(",");
-            }
-            LOG.debug("file: {} match positions: {}", item.getFilename(), b.toString());
+            LOG.debug("file: {} match count: {}", item.getFilename(), item.getPositions().size());
         }
     }
 

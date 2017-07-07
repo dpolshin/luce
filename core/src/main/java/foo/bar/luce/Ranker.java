@@ -14,18 +14,37 @@ public class Ranker {
     private static final Logger LOG = LoggerFactory.getLogger(Ranker.class);
 
     /**
-     * Rank search result tokens by distance.
+     * Match search query tokens within result positions.
      *
      * @param query                 exact query string entered by user
      * @param multiSearchResultItem independent token positions from finder.
      * @return search result
      */
-    public SearchResultItem rank(String query, MultiSearchResultItem multiSearchResultItem) {
-        int queryLength = query.length();
-
+    public SearchResultItem matchResult(String query, MultiSearchResultItem multiSearchResultItem) {
         Map<Integer, String> terms = multiSearchResultItem.getTerms();
         List<Integer> indexTokenPositions = new ArrayList<>(terms.keySet());
-        ArrayList<Integer> resultPositions = new ArrayList<>();
+        List<Integer> resultPositions = matchQuery(query, terms, indexTokenPositions);
+        return new SearchResultItem(multiSearchResultItem.getFilename(), query, resultPositions);
+    }
+
+    public SearchResultItem matchResult(List<String> query, MultiSearchResultItem multiSearchResultItem) {
+        List<Integer> resultPositions = new ArrayList<>();
+        Map<Integer, String> terms = multiSearchResultItem.getTerms();
+        List<Integer> indexTokenPositions = new ArrayList<>(terms.keySet());
+
+        for (String q : query) {
+            List<Integer> subResultPositions = matchQuery(q, terms, indexTokenPositions);
+            if (subResultPositions.size() != 0) {
+                resultPositions.addAll(subResultPositions);
+            }
+        }
+
+        return new SearchResultItem(multiSearchResultItem.getFilename(), query.get(0), resultPositions); //todo: highlighter needs all query tokens;
+    }
+
+    private List<Integer> matchQuery(String query, Map<Integer, String> terms, List<Integer> indexTokenPositions) {
+        List<Integer> resultPositions = new ArrayList<>();
+        int queryLength = query.length();
 
 
         for (int i = 0; i < indexTokenPositions.size() - queryLength; i++) {
@@ -49,47 +68,7 @@ public class Ranker {
             if (frameString.equalsIgnoreCase(query)) {
                 resultPositions.add(indexAtFrameStart);
             }
-
         }
-        return new SearchResultItem(multiSearchResultItem.getFilename(), query, resultPositions);
-    }
-
-
-    /**
-     * Levenshtein distance.
-     *
-     * @param left  string
-     * @param right string
-     * @return int
-     */
-    public int distance(String left, String right) {
-        int lenL = left.length();
-        int lenR = right.length();
-
-        int[] p = new int[lenL + 1];
-        int i, j, up, upL, cost;
-        char rightJ;
-
-        for (i = 0; i <= lenL; i++) {
-            p[i] = i;
-        }
-
-        for (j = 1; j <= lenR; j++) {
-            upL = p[0];
-            rightJ = right.charAt(j - 1);   //todo: distance will be off for 1 by each surrogate key
-            p[0] = j;
-
-            for (i = 1; i <= lenL; i++) {
-                up = p[i];
-                cost = left.charAt(i - 1) == rightJ ? 0 : 1;
-                p[i] = Math.min(
-                        Math.min(
-                                p[i - 1] + 1,
-                                p[i] + 1),
-                        upL + cost);
-                upL = up;
-            }
-        }
-        return p[lenL];
+        return resultPositions;
     }
 }

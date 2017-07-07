@@ -10,10 +10,10 @@ import org.junit.runners.JUnit4;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @RunWith(JUnit4.class)
 public class AnalyzerTest {
+
     @Test
     public void testRegisterFilering() throws Exception {
         List<Token> filteredToken = getFilteredToken("CAPS");
@@ -30,6 +30,7 @@ public class AnalyzerTest {
 
 
     @Test
+    @Ignore
     public void testStopFiltering() throws Exception {
         List<Token> filteredToken = getFilteredToken("then");
         Assert.assertEquals(0, filteredToken.size());

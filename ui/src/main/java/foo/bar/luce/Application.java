@@ -179,17 +179,35 @@ public class Application extends JFrame {
 
     private void search() {
         String term = searchTerm.getText();
-        LOG.info("search for term: {}", term);
-
-        List<SearchResultItem> searchResults = service.search(term, selectedMode());
-        status.setText("Found " + searchResults.size() + " files");
-        LOG.info("found {} results for term {}", searchResults.size(), term);
+        LOG.info("search for term: '{}'", term);
         searchListModel.removeAllElements();
 
-        for (SearchResultItem item : searchResults) {
-            searchListModel.addElement(item);
-            LOG.trace("file: {} match count: {}", item.getFilename(), item.getPositions().size());
-        }
+
+        new SwingWorker<String, SearchResultItem>() {
+            private int count = 0;
+
+            @Override
+            protected String doInBackground() throws Exception {
+                service.search(term, selectedMode()).forEach(this::publish);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                status.setText("Found " + count + " files");
+
+            }
+
+            @Override
+            protected void process(List<SearchResultItem> chunks) {
+                for (SearchResultItem item : chunks) {
+                    count++;
+                    searchListModel.addElement(item);
+                    status.setText("Found " + count + " files");
+                    //LOG.trace("file: {} match count: {}", item.getFilename(), item.getPositions().size());
+                }
+            }
+        }.execute();
     }
 
 
@@ -230,6 +248,25 @@ public class Application extends JFrame {
         return Stream.of("icon/i16.png", "icon/i32.png", "icon/i64.png", "icon/i128.png")
                 .map(s -> new ImageIcon(Application.class.getClassLoader().getResource(s)).getImage())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * @noinspection ALL
+     */
+    private Font $$$getFont$$$(String fontName, int style, int size, Font currentFont) {
+        if (currentFont == null) return null;
+        String resultName;
+        if (fontName == null) {
+            resultName = currentFont.getName();
+        } else {
+            Font testFont = new Font(fontName, Font.PLAIN, 10);
+            if (testFont.canDisplay('a') && testFont.canDisplay('1')) {
+                resultName = fontName;
+            } else {
+                resultName = currentFont.getName();
+            }
+        }
+        return new Font(resultName, style >= 0 ? style : currentFont.getStyle(), size >= 0 ? size : currentFont.getSize());
     }
 
     /**

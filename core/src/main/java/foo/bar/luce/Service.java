@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static foo.bar.luce.model.IndexingResult.Code.*;
 
@@ -43,7 +43,7 @@ public class Service {
     }
 
 
-    public List<SearchResultItem> search(String term, Finder.Mode mode) {
+    public Stream<SearchResultItem> search(String term, Finder.Mode mode) {
         return finder.find(term, mode);
     }
 

@@ -39,7 +39,7 @@ public class CharReaderSpliterator extends Spliterators.AbstractSpliterator<Toke
             //noinspection LoopStatementThatDoesntLoop
             while ((c = reader.read()) > -1) {
                 position++;
-                char c1 = (char) c;
+                char c1 = (char) c; //todo: check if Character.isSurrogate()
                 action.accept(new Token(String.valueOf(c1), position - 1));
                 reader.mark(0);
                 return true;

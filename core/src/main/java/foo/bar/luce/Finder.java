@@ -5,16 +5,21 @@ import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.*;
 import foo.bar.luce.util.CharReaderSpliterator;
 import foo.bar.luce.util.Pair;
+import foo.bar.luce.util.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.StringReader;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 
@@ -34,7 +39,7 @@ public class Finder {
     }
 
 
-    public List<SearchResultItem> find(String query, Mode mode) {
+    public Stream<SearchResultItem> find(String query, Mode mode) {
         LOG.info("search terms: ");
         List<Token> queryTerms = StreamSupport
                 .stream(new CharReaderSpliterator(new StringReader(query)), false)
@@ -43,181 +48,108 @@ public class Finder {
                 .collect(Collectors.toList());
 
         int termsCount = queryTerms.size();
+        Stream<SearchResultItem> resultStream;
 
         if (termsCount == 0) {
-            return Collections.emptyList();
+            resultStream = Stream.empty();
+        } else if (termsCount == 1) {
+            resultStream = singleTermSearch(queryTerms.get(0).getToken());
+        } else {
+
+            List<String> queryWords = new WordTokenizer(query).stream().map(Token::getToken).collect(Collectors.toList());
+            Function<MultiSearchResultItem, SearchResultItem> ranker = null;
+
+            if (mode.equals(Mode.All) && queryWords.size() > 1) {
+                ranker = result -> new Ranker().matchResult(queryWords, result);
+            } else if (mode.equals(Mode.Exact) || queryWords.size() == 1) {
+                ranker = result -> new Ranker().matchResult(query, result);
+            }
+
+            resultStream = multipleTermSearch(queryTerms).map(ranker).filter(r -> !r.getPositions().isEmpty());
         }
-
-        if (termsCount == 1) {
-            String term = queryTerms.get(0).getToken();
-            return singleTermSearch(term);
-        }
-
-
-        if (mode.equals(Mode.All)) {
-            List<Token> queryWords = new WordTokenizer(query).stream().collect(Collectors.toList());
-
-            ArrayList<SearchResultItem> result = new ArrayList<>();
-            Map<String, List<Integer>> merged = new HashMap<>();
-
-            if (queryWords.size() == 0) {
-                return Collections.emptyList();
-            }
-
-            for (Token queryWord : queryWords) {
-
-
-                List<Token> subQueryTerms = StreamSupport
-                        .stream(new CharReaderSpliterator(new StringReader(queryWord.getToken())), false)
-                        .flatMap(analyzer::analyze).collect(Collectors.toList());
-
-                List<MultiSearchResultItem> multiSearchResultItems = multipleTermSearch(subQueryTerms);
-                Ranker ranker = new Ranker();
-
-                for (MultiSearchResultItem item : multiSearchResultItems) {
-                    SearchResultItem ranked = ranker.rank(queryWord.getToken(), item);
-                    if (ranked.getPositions().size() != 0) {
-
-                        if (merged.containsKey(ranked.getFilename())) {
-                            merged.get(ranked.getFilename()).addAll(ranked.getPositions());
-                        } else {
-                            merged.put(ranked.getFilename(), ranked.getPositions());
-                        }
-                    }
-                }
-
-            }
-
-            for (Map.Entry<String, List<Integer>> e : merged.entrySet()) {
-                result.add(new SearchResultItem(e.getKey(), query, e.getValue()));
-                if (result.size() == Constants.MAX_SEARCH_RESULT_SIZE) {
-                    LOG.info("Search result exceeded max size");
-                    return result;
-                }
-            }
-
-            return result;
-        } else if (mode.equals(Mode.Exact)) {
-            ArrayList<SearchResultItem> result = new ArrayList<>();
-
-            List<MultiSearchResultItem> multiSearchResultItems = multipleTermSearch(queryTerms);
-            Ranker ranker = new Ranker();
-
-            for (MultiSearchResultItem item : multiSearchResultItems) {
-                SearchResultItem ranked = ranker.rank(query, item);
-                if (ranked.getPositions().size() != 0) {
-                    result.add(ranked);
-                    if (result.size() == Constants.MAX_SEARCH_RESULT_SIZE) {
-                        LOG.info("Search result exceeded max size");
-                        return result;
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        return Collections.emptyList();
+        return resultStream.limit(Constants.MAX_SEARCH_RESULT_SIZE);
     }
 
 
     //fast shorthand search for single-token query
-    private List<SearchResultItem> singleTermSearch(String term) {
+    private Stream<SearchResultItem> singleTermSearch(String term) {
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
         Set<FileDescriptor> keySet = indexCache.keySet();
 
-        List<SearchResultItem> result = keySet.parallelStream()
+        Stream<SearchResultItem> cachedResultStream = keySet.parallelStream()
                 .filter(key -> indexCache.get(key).getSegment().containsKey(term))
                 .map(key -> new SearchResultItem(key.getLocation(), term, indexCache.get(key).getSegment().get(term)))
-                .sequential().collect(Collectors.toList());
+                .sequential();
 
 
         //load and search persisted files
         Set<FileDescriptor> indexedFiles = fileRegistry.getIndexedFilDescriptors();
         Set<FileDescriptor> cachedFiles = indexCache.keySet();
-        Set<FileDescriptor> remaining = indexedFiles.stream().filter(e -> !cachedFiles.contains(e)).collect(Collectors.toSet());
 
-        for (FileDescriptor file : remaining) {
-            LOG.info("no file in cache, loading index segment for {}", file.getLocation());
-            IndexSegment indexSegment = indexRegistry.getIndexSegment(file);
-            if (indexSegment != null) {
-                //indexRegistry.cacheSegment(file, indexSegment);
-            } else {
-                LOG.info("index segment file not found for {}", file.getLocation());
-                continue;
-            }
+        Stream<SearchResultItem> persistentResultStream = indexedFiles.stream()
+                .filter(fileDescriptor -> !cachedFiles.contains(fileDescriptor))
+                .map(fileDescriptor -> {
+                    LOG.info("loading index segment for {}", fileDescriptor.getLocation());
+                    return new Pair<>(fileDescriptor.getLocation(), indexRegistry.getIndexSegment(fileDescriptor));
+                })
+                .filter(pair -> pair.getRight() != null)
+                .filter(pair -> pair.getRight().getSegment().containsKey(term))
+                .map(pair -> new SearchResultItem(pair.getLeft(), term, pair.getRight().getSegment().get(term)));
 
-            if (indexSegment.getSegment().containsKey(term)) {
-                result.add(new SearchResultItem(file.getLocation(), term, indexSegment.getSegment().get(term)));
-                if (result.size() == Constants.MAX_SEARCH_RESULT_SIZE) {
-                    LOG.info("Search result exceeded max size");
-                    return result;
-                }
-            }
-        }
-        return result;
+
+        return Stream.concat(cachedResultStream, persistentResultStream);
     }
 
 
-    private List<MultiSearchResultItem> multipleTermSearch(List<Token> terms) {
+    private Stream<MultiSearchResultItem> multipleTermSearch(List<Token> terms) {
 
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
         Set<FileDescriptor> indexCacheKeys = indexCache.keySet();
 
-        Predicate<FileDescriptor> containsAllTerms = key -> terms.stream().allMatch(t -> indexCache.get(key).getSegment().containsKey(t.getToken()));
-        BinaryOperator<String> mergeFunction = (v1, v2) -> v2;
-        Collector<Pair<Integer, String>, ?, Map<Integer, String>> mapCollector = Collectors.toMap(Pair::getLeft, Pair::getRight, mergeFunction, HashMap::new);
-
-        //for each search descriptor get result
-        Function<FileDescriptor, MultiSearchResultItem> toMultiSearchResultMapper = descriptor -> {
-
-            //for each term get positions
-            Map<Integer, String> collect = terms.stream()
-                    //for each position map it to token
-                    .flatMap(term -> indexCache.get(descriptor).getSegment().get(term.getToken()).stream()
-                            .map(position -> new Pair<>(position, term.getToken()))
-                    )
-                    .collect(mapCollector);
-
-            return new MultiSearchResultItem(descriptor.getLocation(), collect);
-        };
-
-        List<MultiSearchResultItem> searchResult = indexCacheKeys.parallelStream()
-                .filter(containsAllTerms)
-                .map(toMultiSearchResultMapper)
-                .sequential().collect(Collectors.toList());
+        Stream<MultiSearchResultItem> cachedResultStream = indexCacheKeys.parallelStream()
+                .filter(descriptor -> containsAllTerms.test(indexCache.get(descriptor), terms))
+                .map(descriptor -> toMultiSearchResultMapper.apply(descriptor, indexCache.get(descriptor), terms))
+                .sequential();
 
 
         //load and search persisted files
         Set<FileDescriptor> indexedFiles = fileRegistry.getIndexedFilDescriptors();
         Set<FileDescriptor> cachedFiles = indexCache.keySet();
-        Set<FileDescriptor> remaining = indexedFiles.stream().filter(e -> !cachedFiles.contains(e)).collect(Collectors.toSet());
 
-        for (FileDescriptor file : remaining) {
-            LOG.info("no file in cache, loading index segment for {}", file.getLocation());
-            IndexSegment indexSegment = indexRegistry.getIndexSegment(file);
-            if (indexSegment != null) {
-                //indexRegistry.cacheSegment(file, indexSegment);
-            } else {
-                LOG.info("index segment file not found for {}", file.getLocation());
-                continue;
-            }
+        Stream<MultiSearchResultItem> persistentResultStream = indexedFiles.stream()
+                .filter(fileDescriptor -> !cachedFiles.contains(fileDescriptor))
+                .map(fileDescriptor -> {
+                    LOG.info("loading index segment for {}", fileDescriptor.getLocation());
+                    return new Pair<>(fileDescriptor, indexRegistry.getIndexSegment(fileDescriptor));
+                })
+                .filter(pair -> pair.getRight() != null)
+                .filter(pair -> containsAllTerms.test(pair.getRight(), terms))
+                .map(pair -> toMultiSearchResultMapper.apply(pair.getLeft(), pair.getRight(), terms));
 
-            boolean contains = terms.stream().allMatch(term -> indexSegment.getSegment().containsKey(term.getToken()));
-
-            if (contains) {
-                Map<Integer, String> collect = terms.stream()
-                        .flatMap(term -> indexSegment.getSegment().get(term.getToken()).stream()
-                                .map(position -> new Pair<>(position, term.getToken()))
-                        )
-                        .collect(mapCollector);//!!!
-                MultiSearchResultItem item = new MultiSearchResultItem(file.getLocation(), collect);
-                searchResult.add(item);
-            }
-
-        }
-        return searchResult;
+        return Stream.concat(cachedResultStream, persistentResultStream);
     }
+
+
+    private BinaryOperator<String> mergeFunction = (v1, v2) -> v2;
+    private Collector<Pair<Integer, String>, ?, Map<Integer, String>> mapCollector = Collectors.toMap(Pair::getLeft, Pair::getRight, mergeFunction, TreeMap::new);
+
+    //given index segment contains all search terms
+    private BiPredicate<IndexSegment, List<Token>> containsAllTerms = (segment, queryTerms) -> queryTerms.stream().allMatch(t -> segment.getSegment().containsKey(t.getToken()));
+
+    //for each search descriptor get result
+    private TriFunction<FileDescriptor, IndexSegment, List<Token>, MultiSearchResultItem> toMultiSearchResultMapper = (descriptor, segment, queryTerms) -> {
+
+        //for each term get positions
+        Map<Integer, String> collect = queryTerms.stream()
+                //for each position map it to token
+                .flatMap(term -> segment.getSegment().get(term.getToken()).stream()
+                        .map(position -> new Pair<>(position, term.getToken()))
+                )
+                .collect(mapCollector);
+
+        return new MultiSearchResultItem(descriptor.getLocation(), collect);
+    };
+
 }

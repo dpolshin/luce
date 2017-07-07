@@ -10,8 +10,9 @@ import java.util.Objects;
  * Class representing exact file state that was added for indexing.
  */
 public class FileDescriptor implements Comparable<FileDescriptor>, Serializable {
-    private transient File file; //may be null;
-    private long hash; //Adler32 file sum;
+    private static final long serialVersionUID = 6277827909098651964L;
+    private transient File file; //nullable;
+    private long digest; //Adler32 file sum;
     private String location; //absolute path;
     private String indexSegmentId; //Adler32 absolutePath string sum;
 
@@ -25,7 +26,6 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
     public FileDescriptor(File file) {
         this(file.getAbsolutePath());
         this.file = file;
-        this.hash = FileUtil.hash(this);
     }
 
 
@@ -37,8 +37,12 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
         return location;
     }
 
-    public long getHash() {
-        return hash;
+    public void setDigest(long digest) {
+        this.digest = digest;
+    }
+
+    public long getDigest() {
+        return digest;
     }
 
     public String getIndexSegmentId() {

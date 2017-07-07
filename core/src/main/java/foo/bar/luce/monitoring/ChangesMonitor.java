@@ -3,6 +3,7 @@ package foo.bar.luce.monitoring;
 import foo.bar.luce.FileRegistry;
 import foo.bar.luce.Indexer;
 import foo.bar.luce.model.FileDescriptor;
+import foo.bar.luce.util.FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,12 +96,13 @@ public class ChangesMonitor {
                     List<FileDescriptor> oldFileDescriptors = watchedFiles.parallelStream().filter(e -> e.equals(newFileDescriptor)).collect(Collectors.toList());
 
                     if (oldFileDescriptors.size() != 0) {
-                        Long oldHash = oldFileDescriptors.get(0).getHash();
-                        if (!oldHash.equals(newFileDescriptor.getHash())) {
+                        Long oldHash = oldFileDescriptors.get(0).getDigest();
+                        //todo: fix reindexing
+                        if (!oldHash.equals(FileUtil.hash(newFileDescriptor))) {
                             LOG.info("found changes in file: " + newFileDescriptor.getLocation());
                             try {
                                 indexer.index(newFileDescriptor);
-                            } catch (IOException e) {
+                            } catch (Exception e) {
                                 LOG.error("re-indexing file failed ", e);
                             }
                         }

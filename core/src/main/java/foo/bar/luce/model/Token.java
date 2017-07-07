@@ -6,11 +6,11 @@ package foo.bar.luce.model;
  */
 public class Token {
     private String token;
-    private Position position;
+    private int position;
 
-    public Token(String token, int startOffset, int endOffset) {
+    public Token(String token, int position) {
         this.token = token;
-        this.position = new Position(startOffset, endOffset);
+        this.position = position;
     }
 
     public String getToken() {
@@ -21,20 +21,13 @@ public class Token {
         this.token = token;
     }
 
-    public int getStartOffset() {
-        return position.getStart();
-    }
 
-    public int getEndOffset() {
-        return position.getEnd();
-    }
-
-    public Position getPosition() {
+    public int getPosition() {
         return position;
     }
 
     @Override
     public String toString() {
-        return token + ", " + position.getStart() + ", " + position.getEnd();
+        return token + ", " + position;
     }
 }

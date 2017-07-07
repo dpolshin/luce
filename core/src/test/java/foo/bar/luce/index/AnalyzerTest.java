@@ -10,6 +10,7 @@ import org.junit.runners.JUnit4;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RunWith(JUnit4.class)
 public class AnalyzerTest {
@@ -36,9 +37,8 @@ public class AnalyzerTest {
 
 
     private List<Token> getFilteredToken(String source) {
-        List<Token> tokens = Collections.singletonList(new Token(source, 0, 0));
-        Analyzer analyzer = new Analyzer(tokens.stream());
-        return analyzer.analyze().collect(Collectors.toList());
+        List<Token> tokens = Collections.singletonList(new Token(source, 0));
+        Analyzer analyzer = new Analyzer();
+        return tokens.stream().flatMap(analyzer::analyze).collect(Collectors.toList());
     }
-
 }

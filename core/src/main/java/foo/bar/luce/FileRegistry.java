@@ -7,6 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -18,6 +21,9 @@ public class FileRegistry {
     private FileSegment fileSegment;
     private Persister persister;
 
+    private AtomicBoolean dirty = new AtomicBoolean(false);
+
+
     public FileRegistry(Persister persister) {
         this.persister = persister;
 
@@ -28,29 +34,35 @@ public class FileRegistry {
         } else {
             fileSegment = new FileSegment();
         }
+
+        new Timer().scheduleAtFixedRate(new TimerTask() {
+            public void run() {
+                persistDirty();
+            }
+        }, 0, 60000); //minute
+        Runtime.getRuntime().addShutdownHook(new Thread(this::persist));
     }
 
-    public boolean add(FileDescriptor fileDescriptor) {
-        LOG.info("adding file to index: {}, segment: {}", fileDescriptor.getLocation(), fileDescriptor.getIndexSegmentId());
-        boolean add = fileSegment.getIndexedFiles().add(fileDescriptor);
-        persist();
-        return add;
-    }
+//    public boolean add(FileDescriptor fileDescriptor) {
+//        LOG.info("adding file to index: {}, segment: {}", fileDescriptor.getLocation(), fileDescriptor.getIndexSegmentId());
+//        boolean add = fileSegment.getIndexedFiles().add(fileDescriptor);
+//        persist();
+//        return add;
+//    }
 
     public boolean remove(FileDescriptor fileDescriptor) {
         LOG.info("dropping file from index: {}", fileDescriptor.getLocation());
         boolean remove = fileSegment.getIndexedFiles().remove(fileDescriptor);
         persister.remove(fileDescriptor.getIndexSegmentId());
-        persist();
+        dirty.set(true);
         return remove;
     }
 
-    public boolean update(FileDescriptor fileDescriptor) {
+    public void addOrUpdate(FileDescriptor fileDescriptor) {
         LOG.info("updating file from index: {}", fileDescriptor.getLocation());
-        boolean update = fileSegment.getIndexedFiles().remove(fileDescriptor)
-                && fileSegment.getIndexedFiles().add(fileDescriptor);
-        persist();
-        return update;
+        fileSegment.getIndexedFiles().remove(fileDescriptor);
+        fileSegment.getIndexedFiles().add(fileDescriptor);
+        dirty.set(true);
     }
 
     public Set<String> getIndexedFiles() {
@@ -61,7 +73,15 @@ public class FileRegistry {
         return fileSegment.getIndexedFiles();
     }
 
-    private void persist() {
-        persister.save(fileSegment);
+    public void persist() {
+        persister.saveDefault(fileSegment);
+    }
+
+    private void persistDirty() {
+        if (dirty.get()) {
+            LOG.debug("persisting files registry");
+            persist();
+            dirty.set(false);
+        }
     }
 }

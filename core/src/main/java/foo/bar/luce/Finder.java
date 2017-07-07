@@ -3,17 +3,20 @@ package foo.bar.luce;
 import foo.bar.luce.index.Analyzer;
 import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.*;
+import foo.bar.luce.util.CharReaderSpliterator;
 import foo.bar.luce.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.StringReader;
 import java.util.*;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
 
 public class Finder {
     private static final Logger LOG = LoggerFactory.getLogger(Finder.class);
@@ -22,6 +25,7 @@ public class Finder {
 
     private IndexRegistry indexRegistry;
     private FileRegistry fileRegistry;
+    private Analyzer analyzer = new Analyzer();
 
 
     public Finder(IndexRegistry indexRegistry, FileRegistry fileRegistry) {
@@ -31,13 +35,10 @@ public class Finder {
 
 
     public List<SearchResultItem> find(String query, Mode mode) {
-        WordTokenizer tokenizer = new WordTokenizer(query);
-        Stream<Token> rawTokenString = tokenizer.stream();
-        Analyzer analyzer = new Analyzer(rawTokenString);
-        Stream<Token> tokenStream = analyzer.analyze();
-
         LOG.info("search terms: ");
-        List<Token> queryTerms = tokenStream
+        List<Token> queryTerms = StreamSupport
+                .stream(new CharReaderSpliterator(new StringReader(query)), false)
+                .flatMap(analyzer::analyze)
                 .peek(t -> LOG.info(t.toString()))
                 .collect(Collectors.toList());
 
@@ -54,33 +55,63 @@ public class Finder {
 
 
         if (mode.equals(Mode.All)) {
-            //merge search results for same file
-            Map<String, List<Position>> searchResult = new HashMap<>();
-            for (Token term : queryTerms) {
-                List<SearchResultItem> items = singleTermSearch(term.getToken());
-                for (SearchResultItem item : items) {
-                    if (searchResult.containsKey(item.getFilename())) {
-                        searchResult.get(item.getFilename()).addAll(item.getPositions());
-                    } else {
-                        searchResult.put(item.getFilename(), item.getPositions());
+            List<Token> queryWords = new WordTokenizer(query).stream().collect(Collectors.toList());
+
+            ArrayList<SearchResultItem> result = new ArrayList<>();
+            Map<String, List<Integer>> merged = new HashMap<>();
+
+            if (queryWords.size() == 0) {
+                return Collections.emptyList();
+            }
+
+            for (Token queryWord : queryWords) {
+
+
+                List<Token> subQueryTerms = StreamSupport
+                        .stream(new CharReaderSpliterator(new StringReader(queryWord.getToken())), false)
+                        .flatMap(analyzer::analyze).collect(Collectors.toList());
+
+                List<MultiSearchResultItem> multiSearchResultItems = multipleTermSearch(subQueryTerms);
+                Ranker ranker = new Ranker();
+
+                for (MultiSearchResultItem item : multiSearchResultItems) {
+                    SearchResultItem ranked = ranker.rank(queryWord.getToken(), item);
+                    if (ranked.getPositions().size() != 0) {
+
+                        if (merged.containsKey(ranked.getFilename())) {
+                            merged.get(ranked.getFilename()).addAll(ranked.getPositions());
+                        } else {
+                            merged.put(ranked.getFilename(), ranked.getPositions());
+                        }
                     }
+                }
+
+            }
+
+            for (Map.Entry<String, List<Integer>> e : merged.entrySet()) {
+                result.add(new SearchResultItem(e.getKey(), query, e.getValue()));
+                if (result.size() == Constants.MAX_SEARCH_RESULT_SIZE) {
+                    LOG.info("Search result exceeded max size");
+                    return result;
                 }
             }
 
-            List<SearchResultItem> resultItems = new LinkedList<>();
-            searchResult.forEach((s, positions) -> resultItems.add(new SearchResultItem(s, "", positions)));
-
-            return resultItems;
+            return result;
         } else if (mode.equals(Mode.Exact)) {
             ArrayList<SearchResultItem> result = new ArrayList<>();
 
-            List<MultiSearchResultItem> multiSearchResultItems = multipleTermSearch(query, queryTerms);
+            List<MultiSearchResultItem> multiSearchResultItems = multipleTermSearch(queryTerms);
             Ranker ranker = new Ranker();
 
-            //todo: add tf-idf ranking over files;
             for (MultiSearchResultItem item : multiSearchResultItems) {
-                SearchResultItem ranked = ranker.rank(query, queryTerms, item);
-                result.add(ranked);
+                SearchResultItem ranked = ranker.rank(query, item);
+                if (ranked.getPositions().size() != 0) {
+                    result.add(ranked);
+                    if (result.size() == Constants.MAX_SEARCH_RESULT_SIZE) {
+                        LOG.info("Search result exceeded max size");
+                        return result;
+                    }
+                }
             }
 
             return result;
@@ -90,12 +121,13 @@ public class Finder {
     }
 
 
+    //fast shorthand search for single-token query
     private List<SearchResultItem> singleTermSearch(String term) {
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
         Set<FileDescriptor> keySet = indexCache.keySet();
 
-        List<SearchResultItem> searchResult = keySet.parallelStream()
+        List<SearchResultItem> result = keySet.parallelStream()
                 .filter(key -> indexCache.get(key).getSegment().containsKey(term))
                 .map(key -> new SearchResultItem(key.getLocation(), term, indexCache.get(key).getSegment().get(term)))
                 .sequential().collect(Collectors.toList());
@@ -110,22 +142,25 @@ public class Finder {
             LOG.info("no file in cache, loading index segment for {}", file.getLocation());
             IndexSegment indexSegment = indexRegistry.getIndexSegment(file);
             if (indexSegment != null) {
-                indexRegistry.cacheSegment(file, indexSegment);
+                //indexRegistry.cacheSegment(file, indexSegment);
             } else {
                 LOG.info("index segment file not found for {}", file.getLocation());
                 continue;
             }
 
             if (indexSegment.getSegment().containsKey(term)) {
-                searchResult.add(new SearchResultItem(file.getLocation(), term, indexSegment.getSegment().get(term)));
+                result.add(new SearchResultItem(file.getLocation(), term, indexSegment.getSegment().get(term)));
+                if (result.size() == Constants.MAX_SEARCH_RESULT_SIZE) {
+                    LOG.info("Search result exceeded max size");
+                    return result;
+                }
             }
         }
-        return searchResult;
+        return result;
     }
 
 
-    //used for exact mode of search
-    private List<MultiSearchResultItem> multipleTermSearch(String rawTerm, List<Token> terms) {
+    private List<MultiSearchResultItem> multipleTermSearch(List<Token> terms) {
 
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
@@ -133,7 +168,7 @@ public class Finder {
 
         Predicate<FileDescriptor> containsAllTerms = key -> terms.stream().allMatch(t -> indexCache.get(key).getSegment().containsKey(t.getToken()));
         BinaryOperator<String> mergeFunction = (v1, v2) -> v2;
-        Collector<Pair<Integer, String>, ?, TreeMap<Integer, String>> treeMapCollector = Collectors.toMap(Pair::getLeft, Pair::getRight, mergeFunction, TreeMap::new);
+        Collector<Pair<Integer, String>, ?, Map<Integer, String>> mapCollector = Collectors.toMap(Pair::getLeft, Pair::getRight, mergeFunction, HashMap::new);
 
         //for each search descriptor get result
         Function<FileDescriptor, MultiSearchResultItem> toMultiSearchResultMapper = descriptor -> {
@@ -142,9 +177,9 @@ public class Finder {
             Map<Integer, String> collect = terms.stream()
                     //for each position map it to token
                     .flatMap(term -> indexCache.get(descriptor).getSegment().get(term.getToken()).stream()
-                            .map(position -> new Pair<>(position.getStart(), term.getToken()))
+                            .map(position -> new Pair<>(position, term.getToken()))
                     )
-                    .collect(treeMapCollector);
+                    .collect(mapCollector);
 
             return new MultiSearchResultItem(descriptor.getLocation(), collect);
         };
@@ -164,7 +199,7 @@ public class Finder {
             LOG.info("no file in cache, loading index segment for {}", file.getLocation());
             IndexSegment indexSegment = indexRegistry.getIndexSegment(file);
             if (indexSegment != null) {
-                indexRegistry.cacheSegment(file, indexSegment);
+                //indexRegistry.cacheSegment(file, indexSegment);
             } else {
                 LOG.info("index segment file not found for {}", file.getLocation());
                 continue;
@@ -175,9 +210,9 @@ public class Finder {
             if (contains) {
                 Map<Integer, String> collect = terms.stream()
                         .flatMap(term -> indexSegment.getSegment().get(term.getToken()).stream()
-                                .map(position -> new Pair<>(position.getStart(), term.getToken()))
+                                .map(position -> new Pair<>(position, term.getToken()))
                         )
-                        .collect(treeMapCollector);
+                        .collect(mapCollector);//!!!
                 MultiSearchResultItem item = new MultiSearchResultItem(file.getLocation(), collect);
                 searchResult.add(item);
             }

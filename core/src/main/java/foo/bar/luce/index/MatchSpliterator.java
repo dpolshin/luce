@@ -21,7 +21,7 @@ public class MatchSpliterator extends Spliterators.AbstractSpliterator<Token> {
         if (!matcher.find()) {
             return false;
         }
-        action.accept(new Token(matcher.group(), matcher.start(), matcher.end()));
+        action.accept(new Token(matcher.group(), matcher.start()));
         return true;
     }
 }

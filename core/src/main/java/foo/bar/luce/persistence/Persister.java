@@ -1,5 +1,9 @@
 package foo.bar.luce.persistence;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import foo.bar.luce.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,13 +14,11 @@ import java.io.*;
  */
 public class Persister {
     private static final Logger LOG = LoggerFactory.getLogger(Persister.class);
-
-    private static final String DATA_DIR = ".data";
     private final File dataDir;
 
     public Persister() {
         String work = System.getProperty("user.dir");
-        File dir = new File(work + "/" + DATA_DIR);
+        File dir = new File(work + "/" + Constants.DATA_DIR);
         if (!dir.exists()) {
             boolean mkdir = dir.mkdir();
             if (!mkdir) {
@@ -46,9 +48,49 @@ public class Persister {
     }
 
 
-    public <T extends Persistable> void save(T persistable) throws RuntimeException {
-        String id = persistable.getId();
+    public <T> T load(String id, Class<T> type) {
+        File file = new File(dataDir, id);
+        Kryo kryo = new Kryo();
 
+        try (FileInputStream inStream = new FileInputStream(file);
+             Input input = new Input(inStream)) {
+
+            T object = kryo.readObject(input, type);
+
+            LOG.info("loaded object with id: {}", id);
+
+            return object;
+        } catch (Exception e) {
+            LOG.warn("object with id: {} not found", id);
+            return null;
+        }
+    }
+
+    public <T extends Persistable> void saveDefault(T persistable) throws RuntimeException {
+        File file = validate(persistable);
+
+        try (FileOutputStream fileOutputStream = new FileOutputStream(file);
+             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
+            objectOutputStream.writeObject(persistable);
+        } catch (Exception e) {
+            throw new RuntimeException("can't write data file", e);
+        }
+    }
+
+    public <T extends Persistable> void save(T persistable) throws RuntimeException {
+        File file = validate(persistable);
+        Kryo kryo = new Kryo();
+
+        try (FileOutputStream fileOutputStream = new FileOutputStream(file);
+             Output output = new Output(fileOutputStream)) {
+            kryo.writeObject(output, persistable);
+        } catch (Exception e) {
+            throw new RuntimeException("can't write data file", e);
+        }
+    }
+
+    private File validate(Persistable persistable) {
+        String id = persistable.getId();
         File file = new File(dataDir, id);
         if (!file.exists()) {
             boolean created;
@@ -61,16 +103,10 @@ public class Persister {
                 throw new RuntimeException("can't create data file");
             }
         }
-
-        try (FileOutputStream fileOutputStream = new FileOutputStream(file);
-             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
-            objectOutputStream.writeObject(persistable);
-        } catch (Exception e) {
-            throw new RuntimeException("can't write data file", e);
-        }
+        return file;
     }
 
-    public <T extends Persistable> void remove(String id) throws RuntimeException {
+    public void remove(String id) throws RuntimeException {
         File file = new File(dataDir, id);
         if (!file.exists()) {
             LOG.info("file id: {} transient or already removed", id);

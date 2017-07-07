@@ -9,10 +9,14 @@ import java.util.Map;
  * Class representing part of index (usually from single file), mapped to disk persistent storage.
  */
 public class IndexSegment implements Persistable {
-    private Map<String, List<Position>> segment;
+    private static final long serialVersionUID = -6085794508951501921L;
+    private Map<String, List<Integer>> segment;
     private String id;
 
-    public IndexSegment(FileDescriptor fileDescriptor, Map<String, List<Position>> segment) {
+    public IndexSegment() {
+    }
+
+    public IndexSegment(FileDescriptor fileDescriptor, Map<String, List<Integer>> segment) {
         this.segment = segment;
         this.id = fileDescriptor.getIndexSegmentId();
     }
@@ -22,7 +26,7 @@ public class IndexSegment implements Persistable {
         return id;
     }
 
-    public Map<String, List<Position>> getSegment() {
+    public Map<String, List<Integer>> getSegment() {
         return segment;
     }
 }

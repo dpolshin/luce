@@ -1,78 +1,57 @@
 package foo.bar.luce;
 
 import foo.bar.luce.model.MultiSearchResultItem;
-import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
-import foo.bar.luce.model.Token;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 
 public class Ranker {
     private static final Logger LOG = LoggerFactory.getLogger(Ranker.class);
-    private static final int DISTANCE_THRESHOLD_PER_TOKEN = 2;
-
 
     /**
-     * Rank search result tokens by distance metrics and remove ones that above threshold.
+     * Rank search result tokens by distance.
      *
      * @param query                 exact query string entered by user
-     * @param queryTerms            query terms by tokenizer
      * @param multiSearchResultItem independent token positions from finder.
      * @return search result
      */
-    public SearchResultItem rank(String query, List<Token> queryTerms, MultiSearchResultItem multiSearchResultItem) {
+    public SearchResultItem rank(String query, MultiSearchResultItem multiSearchResultItem) {
         int queryLength = query.length();
-        int querysize = queryTerms.size();
-        int maxDistance = DISTANCE_THRESHOLD_PER_TOKEN * querysize;
-
 
         Map<Integer, String> terms = multiSearchResultItem.getTerms();
-        Iterator<Integer> iterator = terms.keySet().iterator();
-
-        ArrayList<Position> positions = new ArrayList<>();
-
-        frame:
-        while (iterator.hasNext()) {
-            ArrayList<String> frame = new ArrayList<>();
-            int frameStart = 0;
-            int frameEnd = 0;
+        List<Integer> indexTokenPositions = new ArrayList<>(terms.keySet());
+        ArrayList<Integer> resultPositions = new ArrayList<>();
 
 
-            for (int i = 0; i < querysize; i++) {
-                if (iterator.hasNext()) {
-                    Integer position = iterator.next();
-                    frame.add(terms.get(position));
+        for (int i = 0; i < indexTokenPositions.size() - queryLength; i++) {
+            List<Integer> frame = indexTokenPositions.subList(i, i + queryLength);
 
-                    if (i == 0) {
-                        frameStart = position;
-                    }
+            Integer indexAtFrameStart = frame.get(0);
+            Integer indexAtFrameEnd = frame.get(queryLength - 1);
 
-                    if (i == querysize - 1) {
-                        frameEnd = position + terms.get(position).length();
-                    }
-
-                } else {
-                    continue frame;
-                }
+            //check if tokens in the frame are sequential
+            if (indexAtFrameEnd - indexAtFrameStart + 1 != queryLength) {
+                continue;
             }
 
-            int positionDistance = Math.abs(frameEnd - frameStart - queryLength);
-
-            int levenshteinDistance = distance(query.toLowerCase(), String.join(" ", frame));
-            LOG.trace("probing string: {}, lev distance: {}, index distance: {}", frame, levenshteinDistance, positionDistance);
-
-            if (levenshteinDistance < maxDistance && positionDistance < maxDistance) {
-                positions.add(new Position(frameStart, frameEnd));
+            StringBuilder b = new StringBuilder();
+            for (Integer p : frame) {
+                b.append(terms.get(p));
             }
+            String frameString = b.toString();
+
+
+            if (frameString.equalsIgnoreCase(query)) {
+                resultPositions.add(indexAtFrameStart);
+            }
+
         }
-
-        return new SearchResultItem(multiSearchResultItem.getFilename(), query, positions);
+        return new SearchResultItem(multiSearchResultItem.getFilename(), query, resultPositions);
     }
 
 

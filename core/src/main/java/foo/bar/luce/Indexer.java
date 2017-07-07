@@ -1,22 +1,15 @@
 package foo.bar.luce;
 
 import foo.bar.luce.index.Analyzer;
-import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.IndexSegment;
-import foo.bar.luce.model.Position;
 import foo.bar.luce.model.Token;
-import foo.bar.luce.util.FileUtil;
+import foo.bar.luce.util.CharReaderSpliterator;
+import foo.bar.luce.util.CheckedFileCharReaderSpliterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
+import java.util.*;
 
 
 /**
@@ -24,10 +17,11 @@ import java.util.stream.Stream;
  */
 public class Indexer {
     private static final Logger LOG = LoggerFactory.getLogger(Indexer.class);
-    private final Object lock = new Object();
 
     private IndexRegistry indexRegistry;
     private FileRegistry fileRegistry;
+
+    Analyzer analyzer = new Analyzer();
 
 
     public Indexer(IndexRegistry indexRegistry, FileRegistry fileRegistry) {
@@ -36,39 +30,36 @@ public class Indexer {
     }
 
 
-    public void index(FileDescriptor fileDescriptor) throws IOException {
+    public void index(FileDescriptor fileDescriptor) throws Exception {
+        IndexSegment indexSegment;
+        try (CharReaderSpliterator charReaderSpliterator = new CheckedFileCharReaderSpliterator(fileDescriptor)) {
+            Map<String, List<Integer>> index = new HashMap<>();
 
-            LOG.info("indexing started...");
-            File file = fileDescriptor.getFile();
+            charReaderSpliterator.stream()
+                    .flatMap(analyzer::analyze)
+                    .forEach(t -> saveToIndex(t, index));
 
-            //todo: research way to lazily create source from file, without reading whole into memory.
-            WordTokenizer tokenizer = new WordTokenizer(FileUtil.fromFile(file));
-            Stream<Token> rawTokenString = tokenizer.stream();
-            Analyzer analyzer = new Analyzer(rawTokenString);
-            Stream<Token> tokenStream = analyzer.analyze();
-
-            Map<String, List<Position>> index = new HashMap<>();
-
-            tokenStream.forEach(t -> saveToIndex(t, index));
-
-            IndexSegment indexSegment = new IndexSegment(fileDescriptor, index);
-
+            indexSegment = new IndexSegment(fileDescriptor, index);
+        }
+        //noinspection ConstantConditions
+        if (indexSegment != null) {
             indexRegistry.addOrUpdate(fileDescriptor, indexSegment);
-            fileRegistry.update(fileDescriptor);
+            fileRegistry.addOrUpdate(fileDescriptor);
             LOG.info("indexing completed. file: {}, unique tokens: {}", fileDescriptor.getLocation(), indexSegment.getSegment().keySet().size());
-
+        }
     }
 
-    private void saveToIndex(Token token, Map<String, List<Position>> index) {
+
+    private void saveToIndex(Token token, Map<String, List<Integer>> index) {
         String tokenText = token.getToken();
 
-        List<Position> indexEntry = index.get(tokenText);
+        List<Integer> indexEntry = index.get(tokenText);
         if (indexEntry != null) {
             indexEntry.add(token.getPosition());
         } else {
-            LinkedList<Position> positions = new LinkedList<>();
-            positions.add(token.getPosition());
-            index.put(tokenText, positions);
+            List<Integer> Integers = new ArrayList<>();
+            Integers.add(token.getPosition());
+            index.put(tokenText, Integers);
         }
     }
 }

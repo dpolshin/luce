@@ -1,5 +1,6 @@
 package foo.bar.luce.util;
 
+import foo.bar.luce.Constants;
 import foo.bar.luce.model.FileDescriptor;
 
 import java.io.File;
@@ -59,7 +60,7 @@ public class FileUtil {
              FileChannel channel = stream.getChannel()) {
 
             ByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, (int) channel.size());
-            return Charset.forName("UTF-8").newDecoder().decode(buffer);
+            return Charset.forName(Constants.DEFAULT_CHARSET).newDecoder().decode(buffer);
         }
     }
 }

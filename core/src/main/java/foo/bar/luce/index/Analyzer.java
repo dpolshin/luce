@@ -15,15 +15,13 @@ public class Analyzer {
     private static final Logger LOG = LoggerFactory.getLogger(Analyzer.class);
 
     private TokenFilter filterChain;
-    private Stream<Token> tokenStream;
 
-    public Analyzer(Stream<Token> tokenStream) {
-        this.tokenStream = tokenStream;
-        this.filterChain = new ToLowerCaseFilter().then(new StopWordsFilter());
+    public Analyzer() {
+        this.filterChain = new ToLowerCaseFilter();//.then(new StopWordsFilter());
     }
 
-    public Stream<Token> analyze() {
-        return tokenStream
+    public Stream<Token> analyze(Token token) {
+        return Stream.of(token)
                 .map(t -> filterChain.apply(t))
                 .filter(Optional::isPresent)
                 .map(Optional::get);

@@ -3,7 +3,6 @@ package foo.bar.luce;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
-import foo.bar.luce.model.Position;
 import foo.bar.luce.model.SearchResultItem;
 import foo.bar.luce.util.FileUtil;
 import org.slf4j.Logger;
@@ -20,6 +19,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 
 /**
@@ -40,6 +40,7 @@ public class Preview extends JDialog {
 
 
     public Preview(SearchResultItem searchResult) {
+        setIconImages(Application.getIcons());
         this.searchResult = searchResult;
         filename = searchResult.getFilename();
         setTitle("Preview file: " + filename);
@@ -61,15 +62,28 @@ public class Preview extends JDialog {
         contentPane.registerKeyboardAction(e -> onCancel(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
 
         try {
-            //todo: limit preview size
-            CharSequence charSequence = FileUtil.fromFile(new File(filename));
-            textArea.setText(charSequence.toString());
+            File file = new File(filename);
+            long size = Files.size(file.toPath());
+
+            if (size > Constants.PREVIEW_MAX_FILE_SIZE) {
+                LOG.info("file {} is too big for preview", file.getName());
+
+                StringBuilder b = new StringBuilder("File is too big for preview, but here is list of positions matching query within file: \n\n");
+                for (Integer i : searchResult.getPositions()) {
+                    b.append(i).append("\n");
+                }
+                textArea.setText(b.toString());
+            } else {
+                CharSequence charSequence = FileUtil.fromFile(file);
+                textArea.setText(charSequence.toString());
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        for (Position p : searchResult.getPositions()) {
-            highlight(textArea, p.getStart(), p.getEnd());
+        for (Integer p : searchResult.getPositions()) {
+            highlight(textArea, p, p + searchResult.getTerm().length());
         }
 
         //set position to first match
@@ -102,7 +116,7 @@ public class Preview extends JDialog {
     }
 
     private int getMatchPosition(int entry) {
-        List<Position> positions = searchResult.getPositions();
+        List<Integer> positions = searchResult.getPositions();
         int size = positions.size();
         int newPosition;
 
@@ -115,7 +129,7 @@ public class Preview extends JDialog {
         }
 
         position = newPosition;
-        return positions.get(newPosition).getStart();
+        return positions.get(newPosition);
     }
 
     private void onCancel() {

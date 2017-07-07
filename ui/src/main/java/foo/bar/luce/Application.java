@@ -4,6 +4,7 @@ import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
 import foo.bar.luce.model.FileDescriptor;
+import foo.bar.luce.model.IndexingResult;
 import foo.bar.luce.model.SearchResultItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,13 +14,14 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.MalformedInputException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Application GUI entry point.
@@ -60,6 +62,8 @@ public class Application extends JFrame {
         $$$setupUI$$$();
         LOG.debug("loading application");
 
+        setIconImages(getIcons());
+
         service = Service.getInstance();
 
         setContentPane(root);
@@ -83,6 +87,7 @@ public class Application extends JFrame {
 
             if (returnVal == JFileChooser.APPROVE_OPTION) {
                 File file = chooser.getSelectedFile();
+                status.setText("Adding " + file.getName());
                 addFile(file);
             }
             removeButton.setEnabled(true);
@@ -136,17 +141,18 @@ public class Application extends JFrame {
     }
 
     private void addFile(File file) {
-        new SwingWorker<String, String>() {
+        new SwingWorker<String, IndexingResult>() {
             @Override
             protected String doInBackground() throws Exception {
                 if (!file.isDirectory()) {
-                    addSingleFile(file);
+                    publish(service.addFileToIndex(new FileDescriptor(file)));
+
                 } else {
                     try {
                         Files.walkFileTree(file.toPath(), new SimpleFileVisitor<Path>() {
                             @Override
-                            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                                addSingleFile(file.toFile());
+                            public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
+                                publish(service.addFileToIndex(new FileDescriptor(path.toFile())));
                                 return FileVisitResult.CONTINUE;
                             }
                         });
@@ -158,26 +164,14 @@ public class Application extends JFrame {
             }
 
             @Override
-            protected void process(List<String> chunks) {
-                for (String location : chunks) {
-                    fileListModel.addElement(location);
-                }
-                status.setText("File " + chunks.get(chunks.size() - 1) + " added to index");
-            }
-
-            private void addSingleFile(File file) {
-                try {
-                    if (service.addFileToIndex(new FileDescriptor(file))) {
-                        publish(file.getAbsolutePath());
-                    } else {
-                        LOG.info("file {} already indexed", file.getAbsolutePath());
+            protected void process(List<IndexingResult> chunks) {
+                for (IndexingResult result : chunks) {
+                    if (result.getCode().equals(IndexingResult.Code.ok)) {
+                        fileListModel.addElement(result.getPath());
                     }
-                } catch (MalformedInputException e) {
-                    status.setText(file.getName() + " Corrupt file or unsupported encoding");
-                    LOG.info("Adding file " + file.getName() + " failed. Corrupt file or unsupported encoding");
-                } catch (IOException e) {
-                     LOG.error("Adding file " + file.getName(), e);
                 }
+                IndexingResult last = chunks.get(chunks.size() - 1);
+                status.setText("File: " + last.getPath() + " " + last.getCode().label);
             }
         }.execute();
     }
@@ -194,7 +188,7 @@ public class Application extends JFrame {
 
         for (SearchResultItem item : searchResults) {
             searchListModel.addElement(item);
-            LOG.debug("file: {} match count: {}", item.getFilename(), item.getPositions().size());
+            LOG.trace("file: {} match count: {}", item.getFilename(), item.getPositions().size());
         }
     }
 
@@ -231,6 +225,13 @@ public class Application extends JFrame {
         }
     }
 
+    public static List<Image> getIcons() {
+        //noinspection ConstantConditions
+        return Stream.of("icon/i16.png", "icon/i32.png", "icon/i64.png", "icon/i128.png")
+                .map(s -> new ImageIcon(Application.class.getClassLoader().getResource(s)).getImage())
+                .collect(Collectors.toList());
+    }
+
     /**
      * Method generated by IntelliJ IDEA GUI Designer
      * >>> IMPORTANT!! <<<
@@ -261,19 +262,20 @@ public class Application extends JFrame {
         exactCheckBox.setText("exact");
         panel1.add(exactCheckBox, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JPanel panel2 = new JPanel();
-        panel2.setLayout(new GridLayoutManager(4, 3, new Insets(0, 0, 0, 0), -1, -1));
+        panel2.setLayout(new GridLayoutManager(4, 5, new Insets(0, 0, 0, 0), -1, -1));
         tabs.addTab("Index", panel2);
         addButton = new JButton();
         addButton.setText("Add");
-        panel2.add(addButton, new GridConstraints(2, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel2.add(addButton, new GridConstraints(2, 4, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final Spacer spacer1 = new Spacer();
-        panel2.add(spacer1, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
+        panel2.add(spacer1, new GridConstraints(2, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
         removeButton = new JButton();
         removeButton.setText("Remove");
         panel2.add(removeButton, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         fileScrollPane = new JScrollPane();
-        panel2.add(fileScrollPane, new GridConstraints(0, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        panel2.add(fileScrollPane, new GridConstraints(0, 0, 1, 5, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         fileList.setSelectionMode(0);
+        fileList.setVisible(true);
         fileScrollPane.setViewportView(fileList);
         status = new JTextArea();
         status.setBackground(new Color(-1184275));

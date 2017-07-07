@@ -15,12 +15,13 @@ import java.util.stream.StreamSupport;
  * @see Character#isLetter(char)
  */
 public class WordTokenizer implements Tokenizer {
-    private static final String PATTERN = "\\p{L}+"; //unicode 'word' pattern
+    private static final String PATTERN_STRING = "\\p{L}+"; //unicode 'word' pattern
+    private static final Pattern PATTERN = Pattern.compile(PATTERN_STRING);
+
     private Spliterator<Token> spliterator;
 
     public WordTokenizer(CharSequence input) {
-        Pattern pattern = Pattern.compile(PATTERN);
-        Matcher matcher = pattern.matcher(input);
+        Matcher matcher = PATTERN.matcher(input);
         spliterator = new MatchSpliterator(matcher);
     }
 

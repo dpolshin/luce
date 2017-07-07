@@ -9,9 +9,9 @@ import java.util.List;
 public class SearchResultItem {
     private String filename;
     private String term;
-    private List<Position> positions;
+    private List<Integer> positions;
 
-    public SearchResultItem(String filename, String term, List<Position> positions) {
+    public SearchResultItem(String filename, String term, List<Integer> positions) {
         this.filename = filename;
         this.term = term;
         this.positions = positions;
@@ -25,7 +25,7 @@ public class SearchResultItem {
         return term;
     }
 
-    public List<Position> getPositions() {
+    public List<Integer> getPositions() {
         return positions;
     }
 

@@ -24,7 +24,7 @@ public class IndexRegistry {
 
     public void addOrUpdate(FileDescriptor fileDescriptor, IndexSegment segment) {
         persister.save(segment);
-        indexCache.put(fileDescriptor, segment);
+       // indexCache.put(fileDescriptor, segment);
     }
 
     public boolean remove(FileDescriptor fileDescriptor) {
@@ -39,15 +39,16 @@ public class IndexRegistry {
     }
 
     public IndexSegment getIndexSegment(FileDescriptor fileDescriptor) {
-        IndexSegment segment = indexCache.get(fileDescriptor);
-        if (segment == null) {
-            segment = persister.load(fileDescriptor.getIndexSegmentId());
-        }
-        return segment;
+//        IndexSegment segment = indexCache.get(fileDescriptor);
+//        if (segment == null) {
+//            segment =
+                    return persister.load(fileDescriptor.getIndexSegmentId(), IndexSegment.class);
+//        }
+//        return segment;
     }
 
-    public void cacheSegment(FileDescriptor fileDescriptor, IndexSegment segment) {
-        indexCache.put(fileDescriptor, segment);
-    }
+//    public void cacheSegment(FileDescriptor fileDescriptor, IndexSegment segment) {
+//        indexCache.put(fileDescriptor, segment);
+//    }
 
 }

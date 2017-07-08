@@ -8,7 +8,7 @@ import java.util.*;
  * Filter three and more letters stop words.
  * Shorter words will be filtered out by {@link foo.bar.luce.index.LengthFilter}.
  */
-public class StopWordsFilter implements TokenFilter {
+public class StopWordsFilter implements TokenFilter<String> {
     private static final Set<String> stopWords;
 
     static {
@@ -26,7 +26,7 @@ public class StopWordsFilter implements TokenFilter {
     }
 
     @Override
-    public Optional<Token> apply(Token token) {
+    public Optional<Token<String>> apply(Token<String> token) {
         if (!stopWords.contains(token.getToken())) {
             return Optional.of(token);
         } else {

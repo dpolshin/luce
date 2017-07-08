@@ -9,9 +9,9 @@ import java.util.Map;
  */
 public class MultiSearchResultItem {
     private String filename;
-    private Map<Integer, String> terms;
+    private Map<Integer, Character> terms;
 
-    public MultiSearchResultItem(String filename, Map<Integer, String> terms) {
+    public MultiSearchResultItem(String filename, Map<Integer, Character> terms) {
         this.filename = filename;
         this.terms = terms;
     }
@@ -20,7 +20,7 @@ public class MultiSearchResultItem {
         return filename;
     }
 
-    public Map<Integer, String> getTerms() {
+    public Map<Integer, Character> getTerms() {
         return terms;
     }
 

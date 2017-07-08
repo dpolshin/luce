@@ -10,13 +10,13 @@ import java.util.Map;
  */
 public class IndexSegment implements Persistable {
     private static final long serialVersionUID = -6085794508951501921L;
-    private Map<String, List<Integer>> segment;
+    private Map<Character, List<Integer>> segment;
     private String id;
 
     public IndexSegment() {
     }
 
-    public IndexSegment(FileDescriptor fileDescriptor, Map<String, List<Integer>> segment) {
+    public IndexSegment(FileDescriptor fileDescriptor, Map<Character, List<Integer>> segment) {
         this.segment = segment;
         this.id = fileDescriptor.getIndexSegmentId();
     }
@@ -26,7 +26,7 @@ public class IndexSegment implements Persistable {
         return id;
     }
 
-    public Map<String, List<Integer>> getSegment() {
+    public Map<Character, List<Integer>> getSegment() {
         return segment;
     }
 }

@@ -7,10 +7,10 @@ import java.util.Optional;
 /**
  * Apply an operation on a Token.
  */
-public class ToLowerCaseFilter implements TokenFilter {
+public class ToLowerCaseStringFilter implements TokenFilter<String> {
 
     @Override
-    public Optional<Token> apply(Token token) {
+    public Optional<Token<String>> apply(Token<String> token) {
         token.setToken(token.getToken().toLowerCase());
         return Optional.of(token);
     }

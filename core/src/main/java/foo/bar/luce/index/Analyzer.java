@@ -11,16 +11,23 @@ import java.util.stream.Stream;
 /**
  * Apply token filter chain to token stream.
  */
-public class Analyzer {
+public class Analyzer<T> {
     private static final Logger LOG = LoggerFactory.getLogger(Analyzer.class);
 
-    private TokenFilter filterChain;
+    private TokenFilter<T> filterChain;
 
-    public Analyzer() {
-        this.filterChain = new ToLowerCaseFilter();//.then(new StopWordsFilter());
+    @SafeVarargs
+    public Analyzer(TokenFilter<T>... filters) {
+        for (TokenFilter<T> f : filters) {
+            if (filterChain == null) {
+                filterChain = f;
+            } else {
+                filterChain = filterChain.then(f);
+            }
+        }
     }
 
-    public Stream<Token> analyze(Token token) {
+    public Stream<Token<T>> analyze(Token<T> token) {
         return Stream.of(token)
                 .map(t -> filterChain.apply(t))
                 .filter(Optional::isPresent)

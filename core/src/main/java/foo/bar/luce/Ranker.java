@@ -21,7 +21,7 @@ public class Ranker {
      * @return search result
      */
     public SearchResultItem matchResult(String query, MultiSearchResultItem multiSearchResultItem) {
-        Map<Integer, String> terms = multiSearchResultItem.getTerms();
+        Map<Integer, Character> terms = multiSearchResultItem.getTerms();
         List<Integer> indexTokenPositions = new ArrayList<>(terms.keySet());
         List<Integer> resultPositions = matchQuery(query, terms, indexTokenPositions);
         return new SearchResultItem(multiSearchResultItem.getFilename(), query, resultPositions);
@@ -29,7 +29,7 @@ public class Ranker {
 
     public SearchResultItem matchResult(List<String> query, MultiSearchResultItem multiSearchResultItem) {
         List<Integer> resultPositions = new ArrayList<>();
-        Map<Integer, String> terms = multiSearchResultItem.getTerms();
+        Map<Integer, Character> terms = multiSearchResultItem.getTerms();
         List<Integer> indexTokenPositions = new ArrayList<>(terms.keySet());
 
         for (String q : query) {
@@ -42,7 +42,7 @@ public class Ranker {
         return new SearchResultItem(multiSearchResultItem.getFilename(), query.get(0), resultPositions); //todo: highlighter needs all query tokens;
     }
 
-    private List<Integer> matchQuery(String query, Map<Integer, String> terms, List<Integer> indexTokenPositions) {
+    private List<Integer> matchQuery(String query, Map<Integer, Character> terms, List<Integer> indexTokenPositions) {
         List<Integer> resultPositions = new ArrayList<>();
         int queryLength = query.length();
 

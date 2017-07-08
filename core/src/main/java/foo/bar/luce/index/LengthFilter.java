@@ -4,12 +4,12 @@ import foo.bar.luce.model.Token;
 
 import java.util.Optional;
 
-public class LengthFilter implements TokenFilter {
+public class LengthFilter implements TokenFilter<String> {
     private static final int min = 3;
     private static final int max = 20;
 
     @Override
-    public Optional<Token> apply(Token token) {
+    public Optional<Token<String>> apply(Token<String> token) {
         int length = token.getToken().length();
         if (length >= min && length <= max) {
             return Optional.of(token);

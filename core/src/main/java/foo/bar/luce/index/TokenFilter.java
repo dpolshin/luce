@@ -6,9 +6,9 @@ import java.util.Optional;
 import java.util.function.Function;
 
 @FunctionalInterface
-public interface TokenFilter extends Function<Token, Optional<Token>> {
+public interface TokenFilter<T> extends Function<Token<T>, Optional<Token<T>>> {
 
-    default TokenFilter then(TokenFilter after) {
-        return (Token t) -> apply(t).flatMap(after);
+    default TokenFilter<T> then(TokenFilter<T> after) {
+        return (Token<T> t) -> apply(t).flatMap(after);
     }
 }

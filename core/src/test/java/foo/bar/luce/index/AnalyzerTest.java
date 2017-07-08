@@ -16,7 +16,7 @@ public class AnalyzerTest {
 
     @Test
     public void testRegisterFilering() throws Exception {
-        List<Token> filteredToken = getFilteredToken("CAPS");
+        List<Token<String>> filteredToken = getFilteredToken("CAPS");
         Assert.assertEquals("caps", filteredToken.get(0).getToken());
     }
 
@@ -24,7 +24,7 @@ public class AnalyzerTest {
     @Ignore
     //length filter was asked to ignore
     public void testLengthFiltering() throws Exception {
-        List<Token> filteredToken = getFilteredToken("ca");
+        List<Token<String>> filteredToken = getFilteredToken("ca");
         Assert.assertEquals(0, filteredToken.size());
     }
 
@@ -32,14 +32,14 @@ public class AnalyzerTest {
     @Test
     @Ignore
     public void testStopFiltering() throws Exception {
-        List<Token> filteredToken = getFilteredToken("then");
+        List<Token<String>> filteredToken = getFilteredToken("then");
         Assert.assertEquals(0, filteredToken.size());
     }
 
 
-    private List<Token> getFilteredToken(String source) {
-        List<Token> tokens = Collections.singletonList(new Token(source, 0));
-        Analyzer analyzer = new Analyzer();
+    private List<Token<String>> getFilteredToken(String source) {
+        List<Token<String>> tokens = Collections.singletonList(new Token<>(source, 0));
+        Analyzer<String> analyzer = new Analyzer<>(new ToLowerCaseStringFilter());
         return tokens.stream().flatMap(analyzer::analyze).collect(Collectors.toList());
     }
 }

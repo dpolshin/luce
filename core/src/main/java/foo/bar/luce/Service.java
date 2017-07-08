@@ -63,7 +63,7 @@ public class Service {
         IndexingResult.Code code;
 
         LOG.debug("Adding file {} to index", location);
-        if (fileRegistry.getIndexedFiles().contains(location)) {
+        if (fileRegistry.isIndexed(fileDescriptor)) {
             code = duplicate;
         } else {
             try {

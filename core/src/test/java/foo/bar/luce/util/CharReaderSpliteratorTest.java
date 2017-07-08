@@ -20,7 +20,7 @@ public class CharReaderSpliteratorTest {
 
         CharReaderSpliterator s = new CharReaderSpliterator(stringReader);
 
-        Stream<Token> stream = StreamSupport.stream(s, false);
+        Stream<Token<Character>> stream = StreamSupport.stream(s, false);
         StringBuilder b = new StringBuilder();
 
         stream.map(Token::getToken)

@@ -43,13 +43,6 @@ public class FileRegistry {
         Runtime.getRuntime().addShutdownHook(new Thread(this::persist));
     }
 
-//    public boolean add(FileDescriptor fileDescriptor) {
-//        LOG.info("adding file to index: {}, segment: {}", fileDescriptor.getLocation(), fileDescriptor.getIndexSegmentId());
-//        boolean add = fileSegment.getIndexedFiles().add(fileDescriptor);
-//        persist();
-//        return add;
-//    }
-
     public boolean remove(FileDescriptor fileDescriptor) {
         LOG.info("dropping file from index: {}", fileDescriptor.getLocation());
         boolean remove = fileSegment.getIndexedFiles().remove(fileDescriptor);
@@ -63,6 +56,10 @@ public class FileRegistry {
         fileSegment.getIndexedFiles().remove(fileDescriptor);
         fileSegment.getIndexedFiles().add(fileDescriptor);
         dirty.set(true);
+    }
+
+    public boolean isIndexed(FileDescriptor fd) {
+        return fileSegment.getIndexedFiles().contains(fd);
     }
 
     public Set<String> getIndexedFiles() {

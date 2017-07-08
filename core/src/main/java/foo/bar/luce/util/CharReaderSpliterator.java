@@ -17,7 +17,7 @@ import java.util.stream.StreamSupport;
 /**
  * Convert Reader into Stream of Tokens.
  */
-public class CharReaderSpliterator extends Spliterators.AbstractSpliterator<Token> implements Closeable {
+public class CharReaderSpliterator extends Spliterators.AbstractSpliterator<Token<Character>> implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(CharReaderSpliterator.class);
     protected Reader reader;
     private int position = 0;
@@ -33,15 +33,14 @@ public class CharReaderSpliterator extends Spliterators.AbstractSpliterator<Toke
 
 
     @Override
-    public boolean tryAdvance(Consumer<? super Token> action) {
+    public boolean tryAdvance(Consumer<? super Token<Character>> action) {
         try {
-            int c;
+            int i;
             //noinspection LoopStatementThatDoesntLoop
-            while ((c = reader.read()) > -1) {
+            while ((i = reader.read()) > -1) {
                 position++;
-                char c1 = (char) c; //todo: check if Character.isSurrogate()
-                action.accept(new Token(String.valueOf(c1), position - 1));
-                reader.mark(0);
+                Character c = CharUtil.of(i);
+                action.accept(new Token<>(c, position - 1));
                 return true;
             }
             return false;
@@ -59,7 +58,7 @@ public class CharReaderSpliterator extends Spliterators.AbstractSpliterator<Toke
         reader.close();
     }
 
-    public Stream<Token> stream() {
+    public Stream<Token<Character>> stream() {
         return StreamSupport.stream(this, false);
     }
 }

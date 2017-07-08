@@ -1,6 +1,7 @@
 package foo.bar.luce;
 
 import foo.bar.luce.index.Analyzer;
+import foo.bar.luce.index.ToLowerCaseCharFilter;
 import foo.bar.luce.index.WordTokenizer;
 import foo.bar.luce.model.*;
 import foo.bar.luce.util.CharReaderSpliterator;
@@ -30,7 +31,7 @@ public class Finder {
 
     private IndexRegistry indexRegistry;
     private FileRegistry fileRegistry;
-    private Analyzer analyzer = new Analyzer();
+    private Analyzer<Character> analyzer = new Analyzer<>(new ToLowerCaseCharFilter());
 
 
     public Finder(IndexRegistry indexRegistry, FileRegistry fileRegistry) {
@@ -41,7 +42,7 @@ public class Finder {
 
     public Stream<SearchResultItem> find(String query, Mode mode) {
         LOG.info("search terms: ");
-        List<Token> queryTerms = StreamSupport
+        List<Token<Character>> queryTerms = StreamSupport
                 .stream(new CharReaderSpliterator(new StringReader(query)), false)
                 .flatMap(analyzer::analyze)
                 .peek(t -> LOG.info(t.toString()))
@@ -56,7 +57,7 @@ public class Finder {
             resultStream = singleTermSearch(queryTerms.get(0).getToken());
         } else {
 
-            List<String> queryWords = new WordTokenizer(query).stream().map(Token::getToken).collect(Collectors.toList());
+            List<String> queryWords = new WordTokenizer(query).stream().map(Token<String>::getToken).collect(Collectors.toList());
             Function<MultiSearchResultItem, SearchResultItem> ranker = null;
 
             if (mode.equals(Mode.All) && queryWords.size() > 1) {
@@ -72,14 +73,14 @@ public class Finder {
 
 
     //fast shorthand search for single-token query
-    private Stream<SearchResultItem> singleTermSearch(String term) {
+    private Stream<SearchResultItem> singleTermSearch(Character term) {
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
         Set<FileDescriptor> keySet = indexCache.keySet();
 
         Stream<SearchResultItem> cachedResultStream = keySet.parallelStream()
                 .filter(key -> indexCache.get(key).getSegment().containsKey(term))
-                .map(key -> new SearchResultItem(key.getLocation(), term, indexCache.get(key).getSegment().get(term)))
+                .map(key -> new SearchResultItem(key.getLocation(), term.toString(), indexCache.get(key).getSegment().get(term)))
                 .sequential();
 
 
@@ -95,14 +96,14 @@ public class Finder {
                 })
                 .filter(pair -> pair.getRight() != null)
                 .filter(pair -> pair.getRight().getSegment().containsKey(term))
-                .map(pair -> new SearchResultItem(pair.getLeft(), term, pair.getRight().getSegment().get(term)));
+                .map(pair -> new SearchResultItem(pair.getLeft(), term.toString(), pair.getRight().getSegment().get(term)));
 
 
         return Stream.concat(cachedResultStream, persistentResultStream);
     }
 
 
-    private Stream<MultiSearchResultItem> multipleTermSearch(List<Token> terms) {
+    private Stream<MultiSearchResultItem> multipleTermSearch(List<Token<Character>> terms) {
 
         //fast cache search
         Map<FileDescriptor, IndexSegment> indexCache = indexRegistry.getIndexCache();
@@ -132,17 +133,17 @@ public class Finder {
     }
 
 
-    private BinaryOperator<String> mergeFunction = (v1, v2) -> v2;
-    private Collector<Pair<Integer, String>, ?, Map<Integer, String>> mapCollector = Collectors.toMap(Pair::getLeft, Pair::getRight, mergeFunction, TreeMap::new);
+    private BinaryOperator<Character> mergeFunction = (v1, v2) -> v2;
+    private Collector<Pair<Integer, Character>, ?, Map<Integer, Character>> mapCollector = Collectors.toMap(Pair::getLeft, Pair::getRight, mergeFunction, TreeMap::new);
 
     //given index segment contains all search terms
-    private BiPredicate<IndexSegment, List<Token>> containsAllTerms = (segment, queryTerms) -> queryTerms.stream().allMatch(t -> segment.getSegment().containsKey(t.getToken()));
+    private BiPredicate<IndexSegment, List<Token<Character>>> containsAllTerms = (segment, queryTerms) -> queryTerms.stream().allMatch(t -> segment.getSegment().containsKey(t.getToken()));
 
     //for each search descriptor get result
-    private TriFunction<FileDescriptor, IndexSegment, List<Token>, MultiSearchResultItem> toMultiSearchResultMapper = (descriptor, segment, queryTerms) -> {
+    private TriFunction<FileDescriptor, IndexSegment, List<Token<Character>>, MultiSearchResultItem> toMultiSearchResultMapper = (descriptor, segment, queryTerms) -> {
 
         //for each term get positions
-        Map<Integer, String> collect = queryTerms.stream()
+        Map<Integer, Character> collect = queryTerms.stream()
                 //for each position map it to token
                 .flatMap(term -> segment.getSegment().get(term.getToken()).stream()
                         .map(position -> new Pair<>(position, term.getToken()))

@@ -5,4 +5,5 @@ public class Constants {
     public static final int MAX_SEARCH_RESULT_SIZE = 5000; //about 10MB
     public static final String DEFAULT_CHARSET = "UTF-8";
     public static final String DATA_DIR = ".data";
+    public static final int MAX_TOKENS_PER_CHUNK = 50000000; //10M
 }

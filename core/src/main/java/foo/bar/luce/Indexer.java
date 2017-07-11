@@ -36,30 +36,47 @@ public class Indexer {
 
 
     public void index(FileDescriptor fileDescriptor) throws Exception {
-        IndexSegment indexSegment;
         final AtomicReference<Integer> counter = new AtomicReference<>(0);
+        final IndexSegment[] currentChunk = {new IndexSegment(fileDescriptor.getIndexSegmentIds().get(0), new HashMap<>())};
+
 
         try (CharReaderSpliterator charReaderSpliterator = new CheckedFileCharReaderSpliterator(fileDescriptor)) {
-            Map<Character, List<Integer>> index = new HashMap<>();
-
 
             charReaderSpliterator.stream()
                     .flatMap(analyzer::analyze)
                     .peek(t -> counter.getAndUpdate(i -> i + 1))
-                    .forEach(t -> saveToIndex(t, index, counter.get()));
 
-            indexSegment = new IndexSegment(fileDescriptor, index);
-        }
-        //noinspection ConstantConditions
-        if (indexSegment != null) {
-            indexRegistry.addOrUpdate(fileDescriptor, indexSegment);
-            fileRegistry.addOrUpdate(fileDescriptor);
-            LOG.info("indexing completed. file: {}, total tokens: {} unique tokens: {}", fileDescriptor.getLocation(), counter.get(), indexSegment.getSegment().keySet().size());
+                    .forEach(t -> {
+                        boolean newChunk = counter.get() % Constants.MAX_TOKENS_PER_CHUNK == 0;
+
+                        if (newChunk) {
+
+                            indexRegistry.addOrUpdate(fileDescriptor, currentChunk[0]);
+                            fileRegistry.addOrUpdate(fileDescriptor);
+                            LOG.info("adding index chunk for file: {}, total tokens: {} unique tokens: {}",
+                                    fileDescriptor.getLocation(), counter.get(), currentChunk[0].getSegment().keySet().size());
+
+                            String chunkId = fileDescriptor.addChunk();
+                            currentChunk[0] = new IndexSegment(chunkId, new HashMap<>());
+                        }
+
+                        IndexSegment chunk = currentChunk[0];
+                        saveToIndex(t, chunk);
+
+
+                    });
+                            indexRegistry.addOrUpdate(fileDescriptor, currentChunk[0]);
+                            fileRegistry.addOrUpdate(fileDescriptor);
+                            LOG.info("indexing completed. file: {}, total tokens: {} unique tokens: {}",
+                                    fileDescriptor.getLocation(), counter.get(), currentChunk[0].getSegment().keySet().size());
+
         }
     }
 
 
-    private void saveToIndex(Token<Character> token, Map<Character, List<Integer>> index, Integer counter) {
+    private void saveToIndex(Token<Character> token, IndexSegment indexSegment) {
+        Map<Character, List<Integer>> index = indexSegment.getSegment();
+
         Character tokenText = token.getToken();
 
         List<Integer> indexEntry = index.get(tokenText);

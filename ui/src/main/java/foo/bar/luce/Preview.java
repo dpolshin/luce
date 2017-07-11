@@ -4,6 +4,7 @@ import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
 import foo.bar.luce.model.SearchResultItem;
+import foo.bar.luce.model.Token;
 import foo.bar.luce.util.FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,29 +70,33 @@ public class Preview extends JDialog {
                 LOG.info("file {} is too big for preview", file.getName());
 
                 StringBuilder b = new StringBuilder("File is too big for preview, but here is list of positions matching query within file: \n\n");
-                for (Integer i : searchResult.getPositions()) {
-                    b.append(i).append("\n");
+                for (Token<String> t : searchResult.getPositions()) {
+                    b.append(t.getToken()).append("\n");
+                    if (t.getPosition() > Constants.MAX_SEARCH_RESULT_SIZE) {
+                        break;
+                    }
                 }
                 textArea.setText(b.toString());
+
             } else {
                 CharSequence charSequence = FileUtil.fromFile(file);
                 textArea.setText(charSequence.toString());
+                for (Token<String> t : searchResult.getPositions()) {
+                    int position = t.getPosition();
+                    String token = t.getToken();
+                    highlight(textArea, position, position + token.length());
+                }
+                //set position to first match
+                //or use custom create to avoid textArea content change
+                moveToPosition(0);
+
+                next.addActionListener(e -> moveToPosition(position + 1));
+                prev.addActionListener(e -> moveToPosition(position - 1));
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        for (Integer p : searchResult.getPositions()) {
-            highlight(textArea, p, p + searchResult.getTerm().length());
-        }
-
-        //set position to first match
-        //or use custom create to avoid textArea content change
-        moveToPosition(0);
-
-        next.addActionListener(e -> moveToPosition(position + 1));
-        prev.addActionListener(e -> moveToPosition(position - 1));
     }
 
     // Creates highlights around all occurrences of pattern in textComp
@@ -116,7 +121,7 @@ public class Preview extends JDialog {
     }
 
     private int getMatchPosition(int entry) {
-        List<Integer> positions = searchResult.getPositions();
+        List<Token<String>> positions = searchResult.getPositions();
         int size = positions.size();
         int newPosition;
 
@@ -129,7 +134,7 @@ public class Preview extends JDialog {
         }
 
         position = newPosition;
-        return positions.get(newPosition);
+        return positions.get(newPosition).getPosition();
     }
 
     private void onCancel() {

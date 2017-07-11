@@ -8,12 +8,10 @@ import java.util.List;
  */
 public class SearchResultItem {
     private String filename;
-    private String term;
-    private List<Integer> positions;
+    private List<Token<String>> positions;
 
-    public SearchResultItem(String filename, String term, List<Integer> positions) {
+    public SearchResultItem(String filename, List<Token<String>> positions) {
         this.filename = filename;
-        this.term = term;
         this.positions = positions;
     }
 
@@ -21,11 +19,7 @@ public class SearchResultItem {
         return filename;
     }
 
-    public String getTerm() {
-        return term;
-    }
-
-    public List<Integer> getPositions() {
+    public List<Token<String>> getPositions() {
         return positions;
     }
 

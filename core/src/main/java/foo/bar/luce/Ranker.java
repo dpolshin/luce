@@ -1,57 +1,62 @@
 package foo.bar.luce;
 
-import foo.bar.luce.model.MultiSearchResultItem;
 import foo.bar.luce.model.SearchResultItem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import foo.bar.luce.model.Token;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 public class Ranker {
-    private static final Logger LOG = LoggerFactory.getLogger(Ranker.class);
 
     /**
      * Match search query tokens within result positions.
      *
-     * @param query                 exact query string entered by user
-     * @param multiSearchResultItem independent token positions from finder.
+     * @param query exact query string entered by user
      * @return search result
      */
-    public SearchResultItem matchResult(String query, MultiSearchResultItem multiSearchResultItem) {
-        Map<Integer, Character> terms = multiSearchResultItem.getTerms();
-        List<Integer> indexTokenPositions = new ArrayList<>(terms.keySet());
-        List<Integer> resultPositions = matchQuery(query, terms, indexTokenPositions);
-        return new SearchResultItem(multiSearchResultItem.getFilename(), query, resultPositions);
+    public SearchResultItem matchResult(String query, String filename, Stream<Token<Character>> tokenStream) {
+        List<Token<Character>> indexTokenPositions = tokenStream.collect(Collectors.toList());
+        List<Token<String>> positions = matchQuery(query, indexTokenPositions);
+        return new SearchResultItem(filename, positions);
     }
 
-    public SearchResultItem matchResult(List<String> query, MultiSearchResultItem multiSearchResultItem) {
-        List<Integer> resultPositions = new ArrayList<>();
-        Map<Integer, Character> terms = multiSearchResultItem.getTerms();
-        List<Integer> indexTokenPositions = new ArrayList<>(terms.keySet());
+    /**
+     * Match multi word search query tokens within result positions.
+     *
+     * @param query exact query string entered by user
+     * @return search result
+     */
+    public SearchResultItem matchResult(List<String> query, String filename, Stream<Token<Character>> tokenStream) {
+        List<Token<Character>> indexTokenPositions = tokenStream.collect(Collectors.toList());
+        List<Token<String>> resultPositions = new ArrayList<>();
 
         for (String q : query) {
-            List<Integer> subResultPositions = matchQuery(q, terms, indexTokenPositions);
+            List<Token<String>> subResultPositions = matchQuery(q, indexTokenPositions);
             if (subResultPositions.size() != 0) {
                 resultPositions.addAll(subResultPositions);
             }
         }
 
-        return new SearchResultItem(multiSearchResultItem.getFilename(), query.get(0), resultPositions); //todo: highlighter needs all query tokens;
+        return new SearchResultItem(filename, resultPositions);
     }
 
-    private List<Integer> matchQuery(String query, Map<Integer, Character> terms, List<Integer> indexTokenPositions) {
-        List<Integer> resultPositions = new ArrayList<>();
+    private List<Token<String>> matchQuery(String query, List<Token<Character>> indexTokenPositions) {
+        List<Token<String>> resultPositions = new ArrayList<>();
         int queryLength = query.length();
 
 
-        for (int i = 0; i < indexTokenPositions.size() - queryLength; i++) {
-            List<Integer> frame = indexTokenPositions.subList(i, i + queryLength);
+        for (int i = 0; i < indexTokenPositions.size(); i++) {
+            if (i + queryLength > indexTokenPositions.size()) {
+                break;
+            }
 
-            Integer indexAtFrameStart = frame.get(0);
-            Integer indexAtFrameEnd = frame.get(queryLength - 1);
+            List<Token<Character>> frame = indexTokenPositions.subList(i, i + queryLength);
+
+            Integer indexAtFrameStart = frame.get(0).getPosition();
+            Integer indexAtFrameEnd = frame.get(queryLength - 1).getPosition();
 
             //check if tokens in the frame are sequential
             if (indexAtFrameEnd - indexAtFrameStart + 1 != queryLength) {
@@ -59,14 +64,14 @@ public class Ranker {
             }
 
             StringBuilder b = new StringBuilder();
-            for (Integer p : frame) {
-                b.append(terms.get(p));
+            for (Token<Character> p : frame) {
+                b.append(p.getToken());
             }
             String frameString = b.toString();
 
 
             if (frameString.equalsIgnoreCase(query)) {
-                resultPositions.add(indexAtFrameStart);
+                resultPositions.add(new Token<>(query, indexAtFrameStart));
             }
         }
         return resultPositions;

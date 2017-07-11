@@ -46,8 +46,10 @@ public class FileRegistry {
     public boolean remove(FileDescriptor fileDescriptor) {
         LOG.info("dropping file from index: {}", fileDescriptor.getLocation());
         boolean remove = fileSegment.getIndexedFiles().remove(fileDescriptor);
-        persister.remove(fileDescriptor.getIndexSegmentId());
-        dirty.set(true);
+        fileDescriptor.getIndexSegmentIds().forEach(chunk -> {
+            persister.remove(chunk);
+            dirty.set(true);
+        });
         return remove;
     }
 

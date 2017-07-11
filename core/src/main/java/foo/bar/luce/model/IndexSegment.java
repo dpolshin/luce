@@ -16,9 +16,13 @@ public class IndexSegment implements Persistable {
     public IndexSegment() {
     }
 
-    public IndexSegment(FileDescriptor fileDescriptor, Map<Character, List<Integer>> segment) {
+    public IndexSegment(String id) {
+        this.id = id;
+    }
+
+    public IndexSegment(String segmentId, Map<Character, List<Integer>> segment) {
+        this.id = segmentId;
         this.segment = segment;
-        this.id = fileDescriptor.getIndexSegmentId();
     }
 
     @Override

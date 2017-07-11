@@ -7,7 +7,9 @@ import foo.bar.luce.util.CacheMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Simple inverted index with segmentation by single file.
@@ -38,11 +40,11 @@ public class IndexRegistry {
         return indexCache;
     }
 
-    public IndexSegment getIndexSegment(FileDescriptor fileDescriptor) {
+    public Stream<IndexSegment> getIndexSegments(FileDescriptor fileDescriptor) {
 //        IndexSegment segment = indexCache.get(fileDescriptor);
 //        if (segment == null) {
 //            segment =
-                    return persister.load(fileDescriptor.getIndexSegmentId(), IndexSegment.class);
+       return fileDescriptor.getIndexSegmentIds().stream().map(id -> persister.load(id, IndexSegment.class));
 //        }
 //        return segment;
     }

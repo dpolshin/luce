@@ -4,6 +4,8 @@ import foo.bar.luce.util.FileUtil;
 
 import java.io.File;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -14,12 +16,13 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
     private transient File file; //nullable;
     private long digest; //Adler32 file sum;
     private String location; //absolute path;
-    private String indexSegmentId; //Adler32 absolutePath string sum;
+    private String indexSegmentPrefix; //Adler32 absolutePath string sum;
+    private int chunks = 0;
 
 
     public FileDescriptor(String location) {
         this.location = location;
-        this.indexSegmentId = FileUtil.hash(location);
+        this.indexSegmentPrefix = FileUtil.hash(location);
     }
 
 
@@ -45,8 +48,17 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
         return digest;
     }
 
-    public String getIndexSegmentId() {
-        return indexSegmentId;
+    public List<String> getIndexSegmentIds() {
+        ArrayList<String> chunkList = new ArrayList<>();
+        for (int i = 0; i <= chunks; i++) {
+            chunkList.add(indexSegmentPrefix + "." + i);
+        }
+        return chunkList;
+    }
+
+    public String addChunk() {
+        chunks++;
+        return indexSegmentPrefix + "."+ chunks;
     }
 
     @Override

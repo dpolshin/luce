@@ -71,7 +71,7 @@ public class Preview extends JDialog {
 
                 StringBuilder b = new StringBuilder("File is too big for preview, but here is list of positions matching query within file: \n\n");
                 for (Token<String> t : searchResult.getPositions()) {
-                    b.append(t.getToken()).append("\n");
+                    b.append(t.getPosition()).append("\n");
                     if (t.getPosition() > Constants.MAX_SEARCH_RESULT_SIZE) {
                         break;
                     }

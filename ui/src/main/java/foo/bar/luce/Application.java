@@ -13,13 +13,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -144,21 +139,16 @@ public class Application extends JFrame {
         new SwingWorker<String, IndexingResult>() {
             @Override
             protected String doInBackground() throws Exception {
+                Function<IndexingResult, Void> publisher = (result) -> {
+                    publish(result);
+                    return null;
+                };
+
                 if (!file.isDirectory()) {
-                    publish(service.addFileToIndex(new FileDescriptor(file)));
+                    service.addFileToIndex(new FileDescriptor(file), publisher);
 
                 } else {
-                    try {
-                        Files.walkFileTree(file.toPath(), new SimpleFileVisitor<Path>() {
-                            @Override
-                            public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
-                                publish(service.addFileToIndex(new FileDescriptor(path.toFile())));
-                                return FileVisitResult.CONTINUE;
-                            }
-                        });
-                    } catch (IOException e) {
-                        LOG.error("Adding file to index failed", e);
-                    }
+                    service.addDirectoryToIndex(new FileDescriptor(file), publisher);
                 }
                 return null;
             }

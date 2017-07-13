@@ -72,6 +72,10 @@ public class FileRegistry {
         return fileSegment.getIndexedFiles();
     }
 
+    public Set<FileDescriptor> getWatchRootFilDescriptors() {
+        return fileSegment.getWatchRoots();
+    }
+
     public void persist() {
         persister.saveDefault(fileSegment);
     }

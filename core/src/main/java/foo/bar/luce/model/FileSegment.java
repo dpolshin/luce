@@ -10,7 +10,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class FileSegment implements Persistable {
     private static final long serialVersionUID = 7319446910401537232L;
+
     private Set<FileDescriptor> indexedFiles = ConcurrentHashMap.newKeySet();
+    private Set<FileDescriptor> watchRoots = ConcurrentHashMap.newKeySet();
 
     @Override
     public String getId() {
@@ -19,5 +21,9 @@ public class FileSegment implements Persistable {
 
     public Set<FileDescriptor> getIndexedFiles() {
         return indexedFiles;
+    }
+
+    public Set<FileDescriptor> getWatchRoots() {
+        return watchRoots;
     }
 }

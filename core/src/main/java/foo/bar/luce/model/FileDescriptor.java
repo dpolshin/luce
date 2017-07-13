@@ -14,8 +14,9 @@ import java.util.Objects;
 public class FileDescriptor implements Comparable<FileDescriptor>, Serializable {
     private static final long serialVersionUID = 6277827909098651964L;
     private transient File file; //nullable;
-    private long digest; //Adler32 file sum;
     private String location; //absolute path;
+    private long lastModified;
+    private long digest; //Adler32 file sum;
     private String indexSegmentPrefix; //Adler32 absolutePath string sum;
     private int chunks = 0;
 
@@ -28,6 +29,7 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
 
     public FileDescriptor(File file) {
         this(file.getAbsolutePath());
+        this.lastModified = file.lastModified();
         this.file = file;
     }
 
@@ -48,6 +50,10 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
         return digest;
     }
 
+    public long getLastModified() {
+        return lastModified;
+    }
+
     public List<String> getIndexSegmentIds() {
         ArrayList<String> chunkList = new ArrayList<>();
         for (int i = 0; i <= chunks; i++) {
@@ -58,7 +64,7 @@ public class FileDescriptor implements Comparable<FileDescriptor>, Serializable 
 
     public String addChunk() {
         chunks++;
-        return indexSegmentPrefix + "."+ chunks;
+        return indexSegmentPrefix + "." + chunks;
     }
 
     @Override

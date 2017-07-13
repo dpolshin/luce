@@ -18,6 +18,7 @@ public class Ranker {
      * @return search result
      */
     public SearchResultItem matchResult(String query, String filename, Stream<Token<Character>> tokenStream) {
+        //todo: find way not to reduce stream;
         List<Token<Character>> indexTokenPositions = tokenStream.collect(Collectors.toList());
         List<Token<String>> positions = matchQuery(query, indexTokenPositions);
         return new SearchResultItem(filename, positions);

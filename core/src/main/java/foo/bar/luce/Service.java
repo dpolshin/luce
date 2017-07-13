@@ -9,7 +9,14 @@ import foo.bar.luce.util.UnsupportedContentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static foo.bar.luce.model.IndexingResult.Code.*;
@@ -58,7 +65,38 @@ public class Service {
     }
 
 
-    public IndexingResult addFileToIndex(FileDescriptor fileDescriptor) {
+    public void addFile(FileDescriptor fileDescriptor, Function<IndexingResult, Void> publisher) {
+
+        if (fileDescriptor.getFile().isDirectory()) {
+            addDirectory(fileDescriptor, publisher);
+        }
+
+        IndexingResult result = addFile(fileDescriptor);
+        if (result.getCode().equals(ok)) {
+            fileRegistry.getWatchRootFilDescriptors().add(fileDescriptor);
+        }
+        publisher.apply(result);
+
+    }
+
+    private void addDirectory(FileDescriptor fileDescriptor, Function<IndexingResult, Void> publisher) {
+        fileRegistry.getWatchRootFilDescriptors().add(fileDescriptor);
+
+        try {
+            Files.walkFileTree(fileDescriptor.getFile().toPath(), new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
+                    publisher.apply(addFile(new FileDescriptor(path.toFile())));
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            LOG.error("Adding file to index failed", e);
+        }
+    }
+
+
+    private IndexingResult addFile(FileDescriptor fileDescriptor) {
         String location = fileDescriptor.getLocation();
         IndexingResult.Code code;
 
@@ -68,7 +106,6 @@ public class Service {
         } else {
             try {
                 indexer.index(fileDescriptor);
-                changesMonitor.register(fileDescriptor.getFile().toPath());
                 code = ok;
             } catch (UnsupportedContentException e) {
                 LOG.info("Adding file {} failed. Corrupt file or unsupported encoding", location);

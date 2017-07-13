@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.List;
 import java.util.function.Function;
@@ -35,10 +37,12 @@ public class Application extends JFrame {
     private JScrollPane fileScrollPane;
     private JTextArea status;
     private JCheckBox exactCheckBox;
+    private JProgressBar progressBar;
 
 
     private DefaultListModel<String> fileListModel;
     private DefaultListModel<SearchResultItem> searchListModel;
+    private Tasks tasks;
 
 
     /**
@@ -72,6 +76,7 @@ public class Application extends JFrame {
         searchTerm.registerKeyboardAction(e -> search(), KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         searchButton.addActionListener(e -> search());
 
+        tasks = new Tasks(progressBar);
 
         //add files
         addButton.addActionListener(e -> {
@@ -84,6 +89,7 @@ public class Application extends JFrame {
                 File file = chooser.getSelectedFile();
                 status.setText("Adding " + file.getName());
                 addFile(file);
+
             }
             removeButton.setEnabled(true);
         });
@@ -133,10 +139,20 @@ public class Application extends JFrame {
                 });
             }
         });
+
+        //show background tasks
+        progressBar.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                showJobsDialog();
+            }
+        });
+
     }
 
     private void addFile(File file) {
-        new SwingWorker<String, IndexingResult>() {
+        Job<IndexingResult> job = new Job<IndexingResult>("Indexing: '" + file.getName() + "'") {
             @Override
             protected String doInBackground() throws Exception {
                 Function<IndexingResult, Void> publisher = (result) -> {
@@ -144,12 +160,7 @@ public class Application extends JFrame {
                     return null;
                 };
 
-                if (!file.isDirectory()) {
-                    service.addFileToIndex(new FileDescriptor(file), publisher);
-
-                } else {
-                    service.addDirectoryToIndex(new FileDescriptor(file), publisher);
-                }
+                service.addFile(new FileDescriptor(file), publisher);
                 return null;
             }
 
@@ -163,7 +174,9 @@ public class Application extends JFrame {
                 IndexingResult last = chunks.get(chunks.size() - 1);
                 status.setText("File: " + last.getPath() + " " + last.getCode().label);
             }
-        }.execute();
+
+        };
+        tasks.run(job);
     }
 
 
@@ -172,8 +185,7 @@ public class Application extends JFrame {
         LOG.info("search for term: '{}'", term);
         searchListModel.removeAllElements();
 
-
-        new SwingWorker<String, SearchResultItem>() {
+        Job<SearchResultItem> job = new Job<SearchResultItem>("Searching: '" + term + "'") {
             private int count = 0;
 
             @Override
@@ -183,9 +195,8 @@ public class Application extends JFrame {
             }
 
             @Override
-            protected void done() {
+            public void onComplete() {
                 status.setText("Found " + count + " files");
-
             }
 
             @Override
@@ -197,7 +208,8 @@ public class Application extends JFrame {
                     //LOG.trace("file: {} match count: {}", item.getFilename(), item.getPositions().size());
                 }
             }
-        }.execute();
+        };
+        tasks.run(job);
     }
 
 
@@ -240,24 +252,34 @@ public class Application extends JFrame {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * @noinspection ALL
-     */
-    private Font $$$getFont$$$(String fontName, int style, int size, Font currentFont) {
-        if (currentFont == null) return null;
-        String resultName;
-        if (fontName == null) {
-            resultName = currentFont.getName();
-        } else {
-            Font testFont = new Font(fontName, Font.PLAIN, 10);
-            if (testFont.canDisplay('a') && testFont.canDisplay('1')) {
-                resultName = fontName;
-            } else {
-                resultName = currentFont.getName();
-            }
-        }
-        return new Font(resultName, style >= 0 ? style : currentFont.getStyle(), size >= 0 ? size : currentFont.getSize());
+    private void showJobsDialog() {
+
+        Window win = SwingUtilities.getWindowAncestor(this);
+        JDialog dialog = new JDialog(win, "Active Jobs", Dialog.ModalityType.APPLICATION_MODAL);
+
+        DefaultListModel<Tasks.JobDescription> jobsModel = new DefaultListModel<>();
+        tasks.getRunningTasks().forEach(jobsModel::addElement);
+
+        JList<Tasks.JobDescription> jobs = new JList<>(jobsModel);
+
+        //todo: job cancellation;
+//        jobs.addListSelectionListener(e -> {
+//            Tasks.JobDescription selectedJob = jobs.getSelectedValue();
+//            if (selectedJob != null) {
+//                SwingUtilities.invokeLater(() -> {
+//                    tasks.cancel(selectedJob);
+//
+//                });
+//            }
+//        });
+
+        dialog.add(jobs);
+        dialog.setLocationRelativeTo(this);
+        dialog.pack();
+        dialog.setSize(400, 100);
+        dialog.setVisible(true);
     }
+
 
     /**
      * Method generated by IntelliJ IDEA GUI Designer
@@ -269,10 +291,10 @@ public class Application extends JFrame {
     private void $$$setupUI$$$() {
         createUIComponents();
         root = new JPanel();
-        root.setLayout(new GridLayoutManager(2, 1, new Insets(5, 5, 5, 5), -1, -1));
+        root.setLayout(new GridLayoutManager(2, 4, new Insets(5, 5, 5, 5), -1, -1));
         root.setPreferredSize(new Dimension(800, 600));
         tabs = new JTabbedPane();
-        root.add(tabs, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 357), null, 0, false));
+        root.add(tabs, new GridConstraints(0, 0, 1, 4, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 357), null, 0, false));
         final JPanel panel1 = new JPanel();
         panel1.setLayout(new GridLayoutManager(2, 3, new Insets(0, 0, 0, 0), -1, -1));
         tabs.addTab("Search", panel1);
@@ -313,6 +335,10 @@ public class Application extends JFrame {
         status.setFocusable(false);
         status.setMargin(new Insets(5, 5, 5, 5));
         root.add(status, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_NORTHWEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(-1, 17), null, 0, false));
+        progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setVisible(false);
+        root.add(progressBar, new GridConstraints(1, 3, 1, 1, GridConstraints.ANCHOR_EAST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, new Dimension(100, -1), 0, false));
     }
 
     /**

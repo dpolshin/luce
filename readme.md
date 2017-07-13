@@ -16,3 +16,10 @@ Features:
 
 
 ---------------------------------
+
+Known Issues:
+- not possible to cancel running task, either search or indexing
+- if indexed file is to large to fit into one index segment and search found 
+    occurrences in several segments, they will be presented several times in result
+- search result length is limited to 5k items, 
+    however, can be easily extended in future if it makes sense.

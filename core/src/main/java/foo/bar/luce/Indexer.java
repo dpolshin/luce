@@ -65,10 +65,10 @@ public class Indexer {
 
 
                     });
-                            indexRegistry.addOrUpdate(fileDescriptor, currentChunk[0]);
-                            fileRegistry.addOrUpdate(fileDescriptor);
-                            LOG.info("indexing completed. file: {}, total tokens: {} unique tokens: {}",
-                                    fileDescriptor.getLocation(), counter.get(), currentChunk[0].getSegment().keySet().size());
+            indexRegistry.addOrUpdate(fileDescriptor, currentChunk[0]);
+            fileRegistry.addOrUpdate(fileDescriptor);
+            LOG.info("indexing completed. file: {}, total tokens: {} unique tokens: {}",
+                    fileDescriptor.getLocation(), counter.get(), currentChunk[0].getSegment().keySet().size());
 
         }
     }

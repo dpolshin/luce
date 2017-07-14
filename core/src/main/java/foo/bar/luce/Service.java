@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
+import java.util.Observer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -71,6 +72,10 @@ public class Service {
         } else {
             publisher.apply(addFile(fileDescriptor));
         }
+    }
+
+    public void subscribeToFileListChanges(Observer o) {
+        fileRegistry.addObserver(o);
     }
 
     private void addDirectory(FileDescriptor fileDescriptor, Function<IndexingResult, Void> publisher) {

@@ -3,19 +3,18 @@ package foo.bar.luce;
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.FileSegment;
 import foo.bar.luce.persistence.Persister;
+import foo.bar.luce.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
  * Service that manages list of added files.
  */
-public class FileRegistry {
+public class FileRegistry extends Observable {
     private static final Logger LOG = LoggerFactory.getLogger(FileRegistry.class);
 
     private FileSegment fileSegment;
@@ -49,6 +48,8 @@ public class FileRegistry {
         fileDescriptor.getIndexSegmentIds().forEach(chunk -> {
             persister.remove(chunk);
             dirty.set(true);
+            setChanged();
+            notifyObservers(new Pair<>( "Remove", fileDescriptor.getLocation()));
         });
         return remove;
     }
@@ -58,6 +59,9 @@ public class FileRegistry {
         fileSegment.getIndexedFiles().remove(fileDescriptor);
         fileSegment.getIndexedFiles().add(fileDescriptor);
         dirty.set(true);
+        setChanged();
+        notifyObservers(new Pair<>( "Add", fileDescriptor.getLocation()));
+
     }
 
     public boolean isIndexed(FileDescriptor fd) {

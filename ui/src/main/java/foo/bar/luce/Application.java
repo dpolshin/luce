@@ -160,7 +160,7 @@ public class Application extends JFrame {
                     return null;
                 };
 
-                service.addFile(new FileDescriptor(file), publisher);
+                service.add(new FileDescriptor(file), publisher);
                 return null;
             }
 

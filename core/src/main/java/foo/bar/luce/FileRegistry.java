@@ -76,7 +76,7 @@ public class FileRegistry {
         return fileSegment.getWatchRoots();
     }
 
-    public void persist() {
+    private void persist() {
         persister.saveDefault(fileSegment);
     }
 

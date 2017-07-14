@@ -65,18 +65,12 @@ public class Service {
     }
 
 
-    public void addFile(FileDescriptor fileDescriptor, Function<IndexingResult, Void> publisher) {
-
+    public void add(FileDescriptor fileDescriptor, Function<IndexingResult, Void> publisher) {
         if (fileDescriptor.getFile().isDirectory()) {
             addDirectory(fileDescriptor, publisher);
+        } else {
+            publisher.apply(addFile(fileDescriptor));
         }
-
-        IndexingResult result = addFile(fileDescriptor);
-        if (result.getCode().equals(ok)) {
-            fileRegistry.getWatchRootFilDescriptors().add(fileDescriptor);
-        }
-        publisher.apply(result);
-
     }
 
     private void addDirectory(FileDescriptor fileDescriptor, Function<IndexingResult, Void> publisher) {
@@ -86,7 +80,9 @@ public class Service {
             Files.walkFileTree(fileDescriptor.getFile().toPath(), new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
-                    publisher.apply(addFile(new FileDescriptor(path.toFile())));
+                    if (!path.toFile().isDirectory()) {
+                        publisher.apply(addFile(new FileDescriptor(path.toFile())));
+                    }
                     return FileVisitResult.CONTINUE;
                 }
             });
@@ -107,6 +103,7 @@ public class Service {
             try {
                 indexer.index(fileDescriptor);
                 code = ok;
+                fileRegistry.getWatchRootFilDescriptors().add(fileDescriptor);
             } catch (UnsupportedContentException e) {
                 LOG.info("Adding file {} failed. Corrupt file or unsupported encoding", location);
                 code = unsupported;

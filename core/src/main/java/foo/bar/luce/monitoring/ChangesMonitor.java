@@ -4,12 +4,14 @@ import foo.bar.luce.FileRegistry;
 import foo.bar.luce.Indexer;
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.util.FileUtil;
+import foo.bar.luce.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -17,7 +19,6 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-import static com.sun.nio.file.SensitivityWatchEventModifier.HIGH;
 import static java.nio.file.StandardWatchEventKinds.*;
 
 
@@ -29,20 +30,21 @@ public class ChangesMonitor {
     private static final WatchEvent.Kind[] EVENT_KINDS = {ENTRY_DELETE, ENTRY_MODIFY, ENTRY_CREATE, OVERFLOW};
 
     private ExecutorService executorService;
-    private BlockingQueue<Path> changesQueue = new LinkedBlockingQueue<>();
+    private BlockingQueue<Pair<Path, WatchEvent.Kind>> changesQueue = new LinkedBlockingQueue<>();
     private Map<WatchKey, Path> keys = new HashMap<>();
     private WatchService watchService;
 
-    private Collection<FileDescriptor> watchedFiles;
+    private Collection<FileDescriptor> watchRoots;
     private Indexer indexer;
+    private FileRegistry fileRegistry;
 
 
-    //todo: add rescan on startup?
     public ChangesMonitor(FileRegistry fileRegistry, Indexer indexer) {
         LOG.info("starting file changes monitor");
-        watchedFiles = fileRegistry.getIndexedFilDescriptors();
         this.indexer = indexer;
+        this.fileRegistry = fileRegistry;
 
+        watchRoots = fileRegistry.getWatchRootFilDescriptors();
         executorService = new ThreadPoolExecutor(1, 100, 600L, TimeUnit.SECONDS, new SynchronousQueue<>());
 
         try {
@@ -52,16 +54,24 @@ public class ChangesMonitor {
         }
 
         daemonize(this::drain);
-        daemonize(this::processEvents);
+        daemonize(this::dispatch);
 
-        for (FileDescriptor fileDescriptor : fileRegistry.getIndexedFilDescriptors()) {
+        for (FileDescriptor fileDescriptor : watchRoots) {
             String location = fileDescriptor.getLocation();
             File file = new File(location);
+
             if (file.exists()) {
                 Path path = file.toPath();
-                register(path);
+
+                if (!file.isDirectory()) {
+                    //todo;
+                    //registerFile(path);
+                } else {
+                    registerRecursively(path);
+                }
             } else {
                 LOG.error("Registered file no longer exists: {}", location);
+                fileRegistry.remove(fileDescriptor);
             }
         }
     }
@@ -72,40 +82,56 @@ public class ChangesMonitor {
         daemon.start();
     }
 
-    public void register(Path file) {
-        try {
-            Path path = file.getParent();
-            WatchKey key = path.register(watchService, EVENT_KINDS, HIGH);
-            keys.put(key, path);
-        } catch (IOException e) {
-            LOG.error("registering file to watch service failed", e);
-        }
-    }
-
 
     private void drain() {
+        Thread.currentThread().setName("ChangesMonitor.drain");
+        LOG.info("starting watch service event processor thread");
         //noinspection InfiniteLoopStatement
         while (true) {
             try {
-                Path path = changesQueue.take();
+                Pair<Path, WatchEvent.Kind> event = changesQueue.take();
 
-                //to avoid notifier queue choking
+                //to avoid dispatcher queue choking
                 //calculate file checksum and re-index in thread pool
                 executorService.submit(() -> {
-                    FileDescriptor newFileDescriptor = new FileDescriptor(path.toFile());
-                    List<FileDescriptor> oldFileDescriptors = watchedFiles.parallelStream().filter(e -> e.equals(newFileDescriptor)).collect(Collectors.toList());
+                    FileDescriptor fileDescriptor = new FileDescriptor(event.getLeft().toFile());
+                    WatchEvent.Kind eventType = event.getRight();
+                    File file = fileDescriptor.getFile();
 
-                    if (oldFileDescriptors.size() != 0) {
-                        Long oldHash = oldFileDescriptors.get(0).getDigest();
-                        //todo: fix reindexing
-                        if (!oldHash.equals(FileUtil.hash(newFileDescriptor))) {
-                            LOG.info("found changes in file: " + newFileDescriptor.getLocation());
-                            try {
-                                indexer.index(newFileDescriptor);
-                            } catch (Exception e) {
-                                LOG.error("re-indexing file failed ", e);
+
+                    if (eventType.equals(StandardWatchEventKinds.ENTRY_CREATE)) {
+                        LOG.info("New file was added to filesystem: {} ", fileDescriptor.getLocation());
+
+                        if (file.isDirectory()) {
+                            Path path = file.toPath();
+                            addOrUpdateIndexRecursively(path);
+                        } else {
+                            addOrUpdateIndex(fileDescriptor);
+                        }
+                    }
+
+                    if (eventType.equals(StandardWatchEventKinds.ENTRY_MODIFY)) {
+                        LOG.info("New file was modified on filesystem: {} ", fileDescriptor.getLocation());
+
+                        FileDescriptor currentVersion = getCurrentVersion(fileDescriptor);
+                        if (currentVersion != null) {
+                            long newTimeStamp = fileDescriptor.getLastModified();
+                            long currentTimeStamp = currentVersion.getLastModified();
+
+                            if (newTimeStamp != currentTimeStamp) {
+                                long newDigest = FileUtil.hash(fileDescriptor);
+                                long currentDigest = fileDescriptor.getDigest();
+
+                                if (newDigest != currentDigest) {
+                                    addOrUpdateIndex(fileDescriptor);
+                                }
                             }
                         }
+                    }
+
+                    if (eventType.equals(StandardWatchEventKinds.ENTRY_DELETE)) {
+                        LOG.info("New file was removed from filesystem: {} ", fileDescriptor.getLocation());
+                        fileRegistry.remove(fileDescriptor);
                     }
                 });
 
@@ -115,37 +141,139 @@ public class ChangesMonitor {
         }
     }
 
-    void processEvents() {
-        while (true) {
 
-            // wait for key to be signalled
+    /**
+     * Process the given directory, and all its sub-directories, with supplied consumer
+     */
+    private void addOrUpdateIndexRecursively(Path path) {
+        // process directory and sub-directories
+        try {
+            Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    register(path);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
+                    if (!path.toFile().isDirectory()) {
+                        addOrUpdateIndex(new FileDescriptor(path.toFile()));
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            LOG.error("processing file failed", e);
+        }
+    }
+
+    private void registerRecursively(Path dir) {
+        try {
+            Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    register(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            LOG.error("processing file failed", e);
+        }
+    }
+
+    /**
+     * Register the given file with the WatchService.
+     */
+    private void register(Path dir) {
+        try {
+            WatchKey key = dir.register(watchService, EVENT_KINDS);
+            keys.put(key, dir);
+        } catch (IOException e) {
+            LOG.error("registering file to watch service failed", e);
+        }
+    }
+
+
+    private FileDescriptor getCurrentVersion(FileDescriptor fileDescriptor) {
+        List<FileDescriptor> oldFileDescriptors = fileRegistry.getIndexedFilDescriptors()
+                .parallelStream()
+                .filter(e -> e.equals(fileDescriptor)).collect(Collectors.toList());
+
+        if (oldFileDescriptors.size() != 0) {
+            return oldFileDescriptors.get(0);
+        }
+        return null;
+    }
+
+
+    private void addOrUpdateIndex(FileDescriptor fileDescriptor) {
+        try {
+            indexer.index(fileDescriptor);
+            fileRegistry.addOrUpdate(fileDescriptor);
+        } catch (Exception e) {
+            LOG.error("Cant update index for file: " + fileDescriptor.getLocation(), e);
+        }
+    }
+
+    private void addIndexDir(FileDescriptor fileDescriptor) {
+        File file = fileDescriptor.getFile();
+
+
+    }
+
+
+    /**
+     * Get keys queued to the watcher and dispatch to processor queue.
+     */
+    void dispatch() {
+        Thread.currentThread().setName("ChangesMonitor.dispatch");
+        LOG.info("start watch service event dispatcher thread");
+
+        while (true) {
             WatchKey key;
+
             try {
                 key = watchService.take();
-            } catch (InterruptedException x) {
+            } catch (InterruptedException e) {
+                LOG.error("thread interrupted", e);
                 return;
             }
 
-            Path dir = keys.get(key);
-            if (dir == null) {
-                LOG.warn("WatchKey not recognized!!");
-                continue;
-            }
+            try {
+                Path dir = keys.get(key);
+                if (dir == null) {
+                    LOG.warn("WatchKey not recognized!! {}", key);
+                    continue;
+                }
 
-            for (WatchEvent<?> event : key.pollEvents()) {
-                Path name = (Path) event.context();
-                Path child = dir.resolve(name);
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    WatchEvent.Kind eventKind = event.kind();
 
-                FileDescriptor fileDescriptor = new FileDescriptor(child.toString());
-                if (watchedFiles.contains(fileDescriptor)) {
-                    changesQueue.add(child);
-                } else {
-                    boolean valid = key.reset();
-                    if (!valid) {
-                        keys.remove(key);
-                        LOG.info("removing file {} from monitoring", fileDescriptor.getLocation());
+                    if (eventKind == OVERFLOW) {
+                        continue;
+                    }
+
+                    Path eventPath = (Path) event.context();
+                    Path file = dir.resolve(eventPath);
+
+                    LOG.debug("{}: {}", event.kind().name(), file);
+                    changesQueue.add(new Pair<>(file, event.kind()));
+                }
+
+                // reset key and remove from set if directory no longer accessible
+                boolean valid = key.reset();
+                if (!valid) {
+                    keys.remove(key);
+                    LOG.debug("remove key {}", key);
+                    //todo: remove from index
+                    // all directories are inaccessible
+                    if (keys.isEmpty()) {
+                        break;
                     }
                 }
+            } catch (RuntimeException e) {
+                LOG.error("Exception in ChangesMonitor dispatcher thread", e);
             }
         }
     }

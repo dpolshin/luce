@@ -13,13 +13,23 @@ Features:
 - persistent index storage, not requires scan after restart
 - non-blocking search action
 - non-blocking index action
+- can index large repositories (60k files in 3min)
+- can index large files (3GB files in 10min)
 
 
 ---------------------------------
 
-Known Issues:
+Known Issues and Shortcuts:
 - not possible to cancel running task, either search or indexing
 - if indexed file is to large to fit into one index segment and search found 
     occurrences in several segments, they will be presented several times in result
 - search result length is limited to 5k items, 
-    however, can be easily extended in future if it makes sense.
+    however, can be easily extended in future if it makes sense
+- file length is limited to java.lang.Integer.MAX_VALUE characters, so around 3GB is ok
+- index serializer uses kryo library, however, custom binary serialization protocol has been developed
+    and is on par with kryo or slightly faster and provides more functionality, like partial read (header only) and streaming
+- maximum file size for preview limited to 10MB, for larger files offset positions of found matches are shown
+- application does not rescan files and directories for changes upon start
+- application does not track changes for single files added to application, only directories are kept track on
+
+

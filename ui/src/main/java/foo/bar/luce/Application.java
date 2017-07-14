@@ -149,10 +149,11 @@ public class Application extends JFrame implements Observer {
             @Override
             public void mouseClicked(MouseEvent e) {
                 super.mouseClicked(e);
-                showJobsDialog();
+                SwingUtilities.invokeLater(() -> {
+                    showJobsDialog();
+                });
             }
         });
-
     }
 
     private void addFile(File file) {
@@ -170,11 +171,11 @@ public class Application extends JFrame implements Observer {
 
             @Override
             protected void process(List<IndexingResult> chunks) {
-                for (IndexingResult result : chunks) {
-                    if (result.getCode().equals(IndexingResult.Code.ok)) {
-                        fileListModel.addElement(result.getPath());
-                    }
-                }
+//                for (IndexingResult result : chunks) {
+//                    if (result.getCode().equals(IndexingResult.Code.ok)) {
+//                        fileListModel.addElement(result.getPath());
+//                    }
+//                }
                 IndexingResult last = chunks.get(chunks.size() - 1);
                 status.setText("File: " + last.getPath() + " " + last.getCode().label);
             }
@@ -297,8 +298,9 @@ public class Application extends JFrame implements Observer {
                 fileListModel.removeElement(location);
             }
             if (type.equals("Add")) {
-                fileListModel.removeElement(location);
-                fileListModel.addElement(location);
+                if (!fileListModel.contains(location)) {
+                    fileListModel.addElement(location);
+                }
             }
         });
     }

@@ -3,8 +3,7 @@ package foo.bar.luce;
 import foo.bar.luce.model.SearchResultItem;
 import foo.bar.luce.model.Token;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -34,13 +33,19 @@ public class Ranker {
         List<Token<Character>> indexTokenPositions = tokenStream.collect(Collectors.toList());
         List<Token<String>> resultPositions = new ArrayList<>();
 
+        Map<String, Boolean> termsMatch = new HashMap<>();
+
         for (String q : query) {
             List<Token<String>> subResultPositions = matchQuery(q, indexTokenPositions);
             if (subResultPositions.size() != 0) {
                 resultPositions.addAll(subResultPositions);
+                termsMatch.put(q, Boolean.TRUE);
             }
         }
 
+        if (!termsMatch.keySet().containsAll(query)) {
+            resultPositions = Collections.emptyList();
+        }
         return new SearchResultItem(filename, resultPositions);
     }
 

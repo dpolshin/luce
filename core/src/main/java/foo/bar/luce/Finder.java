@@ -55,17 +55,17 @@ public class Finder {
         } else {
 
             List<String> queryWords = new WordTokenizer(query).stream().map(Token<String>::getToken).collect(Collectors.toList());
-            Function<? super TokenPool<Character>, SearchResultItem> ranker = null;
+            Function<? super TokenPool<Character>, SearchResultItem> matcher = null;
 
             if (mode.equals(Mode.All) && queryWords.size() > 1) {
-                ranker = pool -> new Ranker().matchResult(queryWords, pool.getFileDescriptor().getLocation(), pool.stream());
+                matcher = pool -> new Matcher().matchResult(queryWords, pool.getFileDescriptor().getLocation(), pool.stream());
 
             } else if (mode.equals(Mode.Exact) || queryWords.size() == 1 || queryTerms.size() == 1) {
-                ranker = pool -> new Ranker().matchResult(query, pool.getFileDescriptor().getLocation(), pool.stream());
+                matcher = pool -> new Matcher().matchResult(query, pool.getFileDescriptor().getLocation(), pool.stream());
             }
 
             resultStream = multipleTermSearch(queryTerms)
-                    .map(ranker)
+                    .map(matcher)
                     .filter(r -> !r.getPositions().isEmpty());
         }
         return resultStream.limit(Constants.MAX_SEARCH_RESULT_SIZE);

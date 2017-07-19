@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
-public class Ranker {
+public class Matcher {
 
     /**
      * Match search query tokens within result positions.

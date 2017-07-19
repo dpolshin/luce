@@ -1,6 +1,6 @@
 package foo.bar.luce.index;
 
-import foo.bar.luce.Ranker;
+import foo.bar.luce.StreamMatcher;
 import foo.bar.luce.model.SearchResultItem;
 import foo.bar.luce.model.Token;
 import org.junit.Assert;
@@ -12,7 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.stream.Stream;
 
 @RunWith(JUnit4.class)
-public class RankerTest {
+public class StreamMatcherTest {
 
     @Test
     public void testMatchResult() {
@@ -120,9 +120,9 @@ public class RankerTest {
 
         Stream<Token<Character>> stream = map.entrySet().stream().map(e -> new Token<>(e.getValue(), e.getKey()));
 
-        Ranker ranker = new Ranker();
-
-        SearchResultItem item = ranker.matchResult("lorem", "any", stream);
+        StreamMatcher matcher = new StreamMatcher("lorem", "any");
+        stream.forEach(matcher);
+        SearchResultItem item = matcher.getResult();
 
         Assert.assertEquals(3, item.getPositions().size());
         Assert.assertEquals(0, item.getPositions().get(0).getPosition());
@@ -148,10 +148,10 @@ public class RankerTest {
 
         Stream<Token<Character>> stream = map.entrySet().stream().map(e -> new Token<>(e.getValue(), e.getKey()));
 
-        Ranker ranker = new Ranker();
+        StreamMatcher matcher = new StreamMatcher("s", "any");
 
-        SearchResultItem item = ranker.matchResult("s", "any", stream);
+        stream.forEach(matcher);
 
-        Assert.assertEquals(10, item.getPositions().size());
+        Assert.assertEquals(10, matcher.getResult().getPositions().size());
     }
 }

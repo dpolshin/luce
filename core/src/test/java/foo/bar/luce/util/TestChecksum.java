@@ -18,6 +18,6 @@ public class TestChecksum {
         //noinspection ConstantConditions
         File file = new File(url.toURI());
         long hash = FileUtil.hash(new FileDescriptor(file));
-        Assert.assertEquals(3882244716L, hash);
+        Assert.assertEquals(4290796244L, hash);
     }
 }

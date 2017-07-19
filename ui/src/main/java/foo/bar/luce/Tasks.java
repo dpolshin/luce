@@ -1,5 +1,8 @@
 package foo.bar.luce;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.*;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class Tasks {
+    private static final Logger LOG = LoggerFactory.getLogger(Tasks.class);
     private JProgressBar progressBar;
     private Map<Long, Job> activeJobs = new ConcurrentHashMap<>();
 
@@ -22,15 +26,15 @@ public class Tasks {
         job.execute();
     }
 
-    //todo: job cancellation;
-//    public void cancel(JobDescription jobDescription) {
-//        Long id = jobDescription.getId();
-//        if (activeJobs.containsKey(id)) {
-//            Job job = activeJobs.get(id);
-//            job.cancel(true);
-//            activeJobs.remove(id);
-//        }
-//    }
+    public void cancel(JobDescription jobDescription) {
+        Long id = jobDescription.getId();
+        if (activeJobs.containsKey(id)) {
+            Job job = activeJobs.get(id);
+            job.cancel(true);
+            LOG.info("job '{}' cancelled", job.getDescription());
+            activeJobs.remove(id);
+        }
+    }
 
     public void dispose(Job job) {
         activeJobs.remove(job.getId());

@@ -41,7 +41,7 @@ public class Preview extends JDialog {
 
 
     public Preview(SearchResultItem searchResult) {
-        setIconImages(Application.getIcons());
+        setIconImages(WindowUtil.getIcons());
         this.searchResult = searchResult;
         filename = searchResult.getFilename();
         setTitle("Preview file: " + filename);

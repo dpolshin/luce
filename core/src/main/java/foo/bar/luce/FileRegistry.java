@@ -55,7 +55,7 @@ public class FileRegistry extends Observable {
     }
 
     public void addOrUpdate(FileDescriptor fileDescriptor) {
-        LOG.info("updating file from index: {}", fileDescriptor.getLocation());
+        //LOG.info("updating file from index: {}", fileDescriptor.getLocation());
         fileSegment.getIndexedFiles().remove(fileDescriptor);
         fileSegment.getIndexedFiles().add(fileDescriptor);
         dirty.set(true);

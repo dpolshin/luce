@@ -2,8 +2,6 @@ package foo.bar.luce;
 
 import foo.bar.luce.model.FileDescriptor;
 import foo.bar.luce.model.Token;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -12,7 +10,6 @@ import java.util.stream.StreamSupport;
 
 
 public class TokenPool<TT> extends Spliterators.AbstractSpliterator<Token<TT>> {
-    private static final Logger LOG = LoggerFactory.getLogger(TokenPool.class);
 
     private FileDescriptor fileDescriptor;
     private List<LookAheadIterator<Token<TT>>> swimlanes = new ArrayList<>();
@@ -29,7 +26,6 @@ public class TokenPool<TT> extends Spliterators.AbstractSpliterator<Token<TT>> {
 
     public void addSwimlane(Stream<Token<TT>> swimlane) {
         LookAheadIterator<Token<TT>> lookAheadIterator = new LookAheadIterator<>(swimlane.iterator());
-        //LOG.trace("add swimlane, token: {}", lookAheadIterator.peek());
         this.swimlanes.add(lookAheadIterator);
     }
 

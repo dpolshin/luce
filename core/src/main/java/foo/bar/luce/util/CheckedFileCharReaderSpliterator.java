@@ -1,11 +1,11 @@
 package foo.bar.luce.util;
 
 import foo.bar.luce.model.FileDescriptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.charset.*;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.util.zip.Adler32;
 import java.util.zip.CheckedInputStream;
 
@@ -16,7 +16,6 @@ import static foo.bar.luce.Constants.DEFAULT_CHARSET;
  * Convert Reader into Stream of Tokens.
  */
 public class CheckedFileCharReaderSpliterator extends CharReaderSpliterator {
-    private static final Logger LOG = LoggerFactory.getLogger(CheckedFileCharReaderSpliterator.class);
     private CheckedInputStream checkedInputStream;
     private FileDescriptor fileDescriptor;
 

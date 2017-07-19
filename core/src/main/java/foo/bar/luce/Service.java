@@ -86,7 +86,7 @@ public class Service {
                 @Override
                 public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
                     if (!path.toFile().isDirectory()) {
-                        publisher.apply(addFile(new FileDescriptor(path.toFile())));
+                        addFile(new FileDescriptor(path.toFile()));
                     }
                     return FileVisitResult.CONTINUE;
                 }
@@ -101,7 +101,6 @@ public class Service {
         String location = fileDescriptor.getLocation();
         IndexingResult.Code code;
 
-        LOG.debug("Adding file {} to index", location);
         if (fileRegistry.isIndexed(fileDescriptor)) {
             code = duplicate;
         } else {

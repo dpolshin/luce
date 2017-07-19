@@ -1,8 +1,6 @@
 package foo.bar.luce.index;
 
 import foo.bar.luce.model.Token;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -12,7 +10,6 @@ import java.util.stream.Stream;
  * Apply token filter chain to token stream.
  */
 public class Analyzer<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(Analyzer.class);
 
     private TokenFilter<T> filterChain;
 

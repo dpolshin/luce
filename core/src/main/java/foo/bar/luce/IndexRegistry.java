@@ -7,7 +7,6 @@ import foo.bar.luce.util.CacheMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -26,7 +25,7 @@ public class IndexRegistry {
 
     public void addOrUpdate(FileDescriptor fileDescriptor, IndexSegment segment) {
         persister.save(segment);
-       // indexCache.put(fileDescriptor, segment);
+        // indexCache.put(fileDescriptor, segment);
     }
 
     public boolean remove(FileDescriptor fileDescriptor) {
@@ -44,7 +43,7 @@ public class IndexRegistry {
 //        IndexSegment segment = indexCache.get(fileDescriptor);
 //        if (segment == null) {
 //            segment =
-       return fileDescriptor.getIndexSegmentIds().stream().map(id -> persister.load(id, IndexSegment.class));
+        return fileDescriptor.getIndexSegmentIds().stream().map(id -> persister.load(id, IndexSegment.class));
 //        }
 //        return segment;
     }

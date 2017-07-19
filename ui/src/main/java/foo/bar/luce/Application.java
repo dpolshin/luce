@@ -20,14 +20,13 @@ import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Application GUI entry point.
  */
 public class Application extends JFrame implements Observer {
     private static final Logger LOG = LoggerFactory.getLogger(Application.class);
+    private final Object searchMonitor = new Object();
 
     private JTabbedPane tabs;
     private JTextField searchTerm;
@@ -64,7 +63,7 @@ public class Application extends JFrame implements Observer {
         $$$setupUI$$$();
         LOG.debug("loading application");
 
-        setIconImages(getIcons());
+        setIconImages(WindowUtil.getIcons());
 
         service = Service.getInstance();
 
@@ -171,11 +170,6 @@ public class Application extends JFrame implements Observer {
 
             @Override
             protected void process(List<IndexingResult> chunks) {
-//                for (IndexingResult result : chunks) {
-//                    if (result.getCode().equals(IndexingResult.Code.ok)) {
-//                        fileListModel.addElement(result.getPath());
-//                    }
-//                }
                 IndexingResult last = chunks.get(chunks.size() - 1);
                 status.setText("File: " + last.getPath() + " " + last.getCode().label);
             }
@@ -195,8 +189,10 @@ public class Application extends JFrame implements Observer {
 
             @Override
             protected String doInBackground() throws Exception {
-                service.search(term, selectedMode()).forEach(this::publish);
-                return null;
+                synchronized (searchMonitor) {
+                    service.search(term, selectedMode()).forEach(this::publish);
+                    return null;
+                }
             }
 
             @Override
@@ -210,7 +206,6 @@ public class Application extends JFrame implements Observer {
                     count++;
                     searchListModel.addElement(item);
                     status.setText("Found " + count + " files");
-                    //LOG.trace("file: {} match count: {}", item.getFilename(), item.getPositions().size());
                 }
             }
         };
@@ -250,35 +245,40 @@ public class Application extends JFrame implements Observer {
         }
     }
 
-    public static List<Image> getIcons() {
-        //noinspection ConstantConditions
-        return Stream.of("icon/i16.png", "icon/i32.png", "icon/i64.png", "icon/i128.png")
-                .map(s -> new ImageIcon(Application.class.getClassLoader().getResource(s)).getImage())
-                .collect(Collectors.toList());
-    }
-
     private void showJobsDialog() {
 
         Window win = SwingUtilities.getWindowAncestor(this);
         JDialog dialog = new JDialog(win, "Active Jobs", Dialog.ModalityType.APPLICATION_MODAL);
+        JScrollPane jobScrollPane = new JScrollPane();
+        dialog.add(jobScrollPane);
 
         DefaultListModel<Tasks.JobDescription> jobsModel = new DefaultListModel<>();
         tasks.getRunningTasks().forEach(jobsModel::addElement);
 
         JList<Tasks.JobDescription> jobs = new JList<>(jobsModel);
+        jobs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        //todo: job cancellation;
-//        jobs.addListSelectionListener(e -> {
-//            Tasks.JobDescription selectedJob = jobs.getSelectedValue();
-//            if (selectedJob != null) {
-//                SwingUtilities.invokeLater(() -> {
-//                    tasks.cancel(selectedJob);
-//
-//                });
-//            }
-//        });
+        jobs.addListSelectionListener(e -> {
+            Tasks.JobDescription selectedJob = jobs.getSelectedValue();
 
-        dialog.add(jobs);
+            if (selectedJob != null) {
+                //0 == ok
+                //1 == cancel
+                int selection = JOptionPane.showConfirmDialog(null,
+                        "Cancel job?", "Cancel selected job?", JOptionPane.YES_NO_OPTION);
+
+                if (selection == 0) {
+                    SwingUtilities.invokeLater(() -> {
+                        tasks.cancel(selectedJob);
+                        jobsModel.removeElement(selectedJob);
+
+                    });
+                }
+            }
+        });
+
+        // jobScrollPane.add(jobs);
+        jobScrollPane.setViewportView(jobs);
         dialog.setLocationRelativeTo(this);
         dialog.pack();
         dialog.setSize(400, 100);
